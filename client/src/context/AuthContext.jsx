@@ -26,6 +26,21 @@ export function AuthProvider({ children }) {
     return data.user;
   };
 
+  const registerCompany = async (formData) => {
+    const response = await fetch('/api/auth/register-company', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Company registration failed');
+    }
+    localStorage.setItem('dayflow_token', data.token);
+    localStorage.setItem('dayflow_user', JSON.stringify(data.user));
+    setUser(data.user);
+    return data.user;
+  };
+
   const logout = () => {
     localStorage.removeItem('dayflow_token');
     localStorage.removeItem('dayflow_user');
@@ -41,7 +56,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, refreshUser, isAdmin: user?.role === 'admin' }}>
+    <AuthContext.Provider value={{ user, login, registerCompany, logout, loading, refreshUser, isAdmin: user?.role === 'admin' }}>
       {children}
     </AuthContext.Provider>
   );

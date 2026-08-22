@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('../db/database');
 const { authMiddleware, adminOnly } = require('../middleware/auth');
+const { createNotification } = require('./notifications');
 
 const router = express.Router();
 
@@ -25,6 +26,8 @@ router.post('/check-in', authMiddleware, (req, res) => {
       db.prepare('INSERT INTO attendance (user_id, date, check_in, status) VALUES (?, ?, ?, ?)')
         .run(userId, today, checkInTime, 'present');
     }
+
+    createNotification(userId, 'Punch-in Successful', `Your day started at ${checkInTime}. Have a great shift!`, 'success');
 
     res.json({ message: 'Checked in successfully', check_in: checkInTime, date: today });
   } catch (err) {
@@ -59,6 +62,8 @@ router.post('/check-out', authMiddleware, (req, res) => {
 
     db.prepare('UPDATE attendance SET check_out = ?, work_hours = ?, extra_hours = ?, status = ? WHERE id = ?')
       .run(checkOutTime, workHours, extraHours, status, existing.id);
+
+    createNotification(userId, 'Punch-out Successful', `Session closed at ${checkOutTime}. Worked ${workHours} hours today.`, 'general');
 
     res.json({ message: 'Checked out successfully', check_out: checkOutTime, work_hours: workHours, extra_hours: extraHours });
   } catch (err) {
@@ -121,6 +126,7 @@ router.get('/my', authMiddleware, (req, res) => {
 router.get('/all', authMiddleware, adminOnly, (req, res) => {
   try {
     const { date, start_date, end_date } = req.query;
+    const companyId = req.user.company_id;
     
     let records;
     if (date) {
@@ -128,26 +134,26 @@ router.get('/all', authMiddleware, adminOnly, (req, res) => {
         SELECT a.*, u.first_name, u.last_name, u.employee_id, u.department
         FROM attendance a
         JOIN users u ON a.user_id = u.id
-        WHERE a.date = ?
+        WHERE a.date = ? AND u.company_id = ?
         ORDER BY u.first_name
-      `).all(date);
+      `).all(date, companyId);
     } else if (start_date && end_date) {
       records = db.prepare(`
         SELECT a.*, u.first_name, u.last_name, u.employee_id, u.department
         FROM attendance a
         JOIN users u ON a.user_id = u.id
-        WHERE a.date BETWEEN ? AND ?
+        WHERE (a.date BETWEEN ? AND ?) AND u.company_id = ?
         ORDER BY a.date DESC, u.first_name
-      `).all(start_date, end_date);
+      `).all(start_date, end_date, companyId);
     } else {
       const today = new Date().toISOString().split('T')[0];
       records = db.prepare(`
         SELECT a.*, u.first_name, u.last_name, u.employee_id, u.department
         FROM attendance a
         JOIN users u ON a.user_id = u.id
-        WHERE a.date = ?
+        WHERE a.date = ? AND u.company_id = ?
         ORDER BY u.first_name
-      `).all(today);
+      `).all(today, companyId);
     }
 
     res.json(records);
