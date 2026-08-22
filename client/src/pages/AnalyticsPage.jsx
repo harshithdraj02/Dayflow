@@ -13,6 +13,42 @@ export default function AnalyticsPage() {
   const [deptStats, setDeptStats] = useState([]);
   const [payrollSum, setPayrollSum] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [trendView, setTrendView] = useState('daily');
+
+  const getWeeklyData = (dailyData) => {
+    const weeks = {};
+    dailyData.forEach(item => {
+      const [year, month, day] = item.date.split('-').map(Number);
+      const dateObj = new Date(year, month - 1, day);
+      const currentDay = dateObj.getDay();
+      const dayDiff = dateObj.getDate() - currentDay + (currentDay === 0 ? -6 : 1);
+      const monday = new Date(dateObj.setDate(dayDiff));
+      const weekLabel = `w/c ${monday.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`;
+      
+      if (!weeks[weekLabel]) {
+        weeks[weekLabel] = {
+          day: weekLabel,
+          present: 0,
+          absent: 0,
+          leave: 0,
+          halfDay: 0,
+          sortKey: monday.getTime()
+        };
+      }
+      weeks[weekLabel].present += item.present || 0;
+      weeks[weekLabel].absent += item.absent || 0;
+      weeks[weekLabel].leave += item.leave || 0;
+      weeks[weekLabel].halfDay += item.halfDay || 0;
+    });
+    return Object.values(weeks).sort((a, b) => a.sortKey - b.sortKey);
+  };
+
+  const getChartData = () => {
+    if (trendView === 'weekly') {
+      return getWeeklyData(trend);
+    }
+    return trend.slice(-10);
+  };
 
   useEffect(() => {
     if (isAdmin) {
@@ -25,7 +61,7 @@ export default function AnalyticsPage() {
     try {
       const [ov, tr, dept, pay] = await Promise.all([
         api.getOverview(),
-        api.getAttendanceTrend(10),
+        api.getAttendanceTrend(30),
         api.getDepartmentStats(),
         api.getPayrollSummary()
       ]);
@@ -87,10 +123,46 @@ export default function AnalyticsPage() {
 
       <div className="charts-grid">
         <div className="chart-container">
-          <h3>Daily Attendance Trends (Exclude Weekends)</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ margin: 0 }}>Attendance Trends</h3>
+            <div style={{ display: 'flex', gap: 4, background: 'var(--bg-elevated)', border: '1px solid var(--border)', borderRadius: 6, padding: '3px 4px' }}>
+              <button
+                className={`btn-toggle ${trendView === 'daily' ? 'active' : ''}`}
+                style={{
+                  background: trendView === 'daily' ? 'var(--primary)' : 'transparent',
+                  color: trendView === 'daily' ? '#fff' : 'var(--text-secondary)',
+                  border: 'none',
+                  padding: '3px 10px',
+                  borderRadius: 4,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+                onClick={() => setTrendView('daily')}
+              >
+                Daily
+              </button>
+              <button
+                className={`btn-toggle ${trendView === 'weekly' ? 'active' : ''}`}
+                style={{
+                  background: trendView === 'weekly' ? 'var(--primary)' : 'transparent',
+                  color: trendView === 'weekly' ? '#fff' : 'var(--text-secondary)',
+                  border: 'none',
+                  padding: '3px 10px',
+                  borderRadius: 4,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+                onClick={() => setTrendView('weekly')}
+              >
+                Weekly
+              </button>
+            </div>
+          </div>
           <div style={{ width: '100%', height: 300 }}>
             <ResponsiveContainer>
-              <BarChart data={trend}>
+              <BarChart data={getChartData()}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="day" stroke="var(--text-secondary)" />
                 <YAxis allowDecimals={false} stroke="var(--text-secondary)" />

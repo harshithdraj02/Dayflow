@@ -35,11 +35,15 @@ This checklist tracks already-implemented features alongside the outstanding req
     *   *Safety Guard*: Throws `403 Forbidden` if an Admin attempts to delete their own account.
 *   [x] **Offboard UI Button**: Added red **"Delete Employee Account"** button in `ProfilePage.jsx` sidebar (restricted to Admins, hidden for self-account). Prompts for confirmation box, calls API, and redirects to directory `/`.
 
-### 📜 Certification Deletion (Completing CRUD)
+### 📜 Certification Deletion & Date Field (Completing CRUD)
 *   [x] **Backend Route**: Added `DELETE /api/employees/:id/certifications/:certId` in `server/routes/employees.js`.
     *   *Access*: Owner employee (`req.user.id === id`) or Admin.
 *   [x] **Resume UI deletion**: Added remove `X` icon button over certifications in the resume section of `ProfilePage.jsx` when edit permissions (`canEdit`) are allowed, mirroring skills.
+*   [x] **Date Selection Picker**: Added Date input element to allow picking certification dates on credentials creation.
 
 ### 📅 Weekend & Overlap Leave Guardrails
 *   [x] **0-Day Working Range Block**: Added validation rules to reject leave submissions when computed working days count is `0` (e.g. range spans only Saturday and Sunday).
 *   [x] **Future Date Validation**: Guards against applying for leave dates that have already passed, except for retrospectively logging Sick Leave.
+
+### 📊 Attendance Report Switch
+*   [x] **Daily / Weekly chart switch**: Group attendance trends by Calendar Week (Monday wc format) and aggregates metrics dynamically.

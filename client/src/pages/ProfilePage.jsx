@@ -350,7 +350,7 @@ export default function ProfilePage() {
                   </button>
                 )}
                 {showAddCert && (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 8, marginTop: 12, alignItems: 'end' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 0.8fr auto auto', gap: 8, marginTop: 12, alignItems: 'end' }}>
                     <div className="form-group" style={{ margin: 0 }}>
                       <label>Name</label>
                       <input className="form-input" value={newCert.name} onChange={e => setNewCert({...newCert, name: e.target.value})} placeholder="Certification name" />
@@ -358,6 +358,10 @@ export default function ProfilePage() {
                     <div className="form-group" style={{ margin: 0 }}>
                       <label>Issuer</label>
                       <input className="form-input" value={newCert.issuer} onChange={e => setNewCert({...newCert, issuer: e.target.value})} placeholder="Issuing org" />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label>Date</label>
+                      <input className="form-input" type="date" value={newCert.date} onChange={e => setNewCert({...newCert, date: e.target.value})} />
                     </div>
                     <button className="btn btn-primary btn-sm" onClick={handleAddCert}>Add</button>
                     <button className="btn btn-secondary btn-sm" onClick={() => setShowAddCert(false)}><X size={14} /></button>
