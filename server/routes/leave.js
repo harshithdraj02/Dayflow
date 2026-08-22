@@ -59,14 +59,28 @@ router.post('/apply', authMiddleware, (req, res) => {
         return res.status(400).json({ error: 'Medical certificate upload is required for sick leave.' });
       }
 
-      // Calculate days
-      const start = new Date(start_date);
-      const end = new Date(end_date);
-      if (end < start) return res.status(400).json({ error: 'End date must be after start date' });
+      // Future Date Validation: Guard against applying for past dates unless sick leave
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      if (leave_type !== 'sick' && start_date < todayStr) {
+        return res.status(400).json({ error: 'Leave start date cannot be in the past. Only sick leave may be applied retrospectively.' });
+      }
+
+      // Calculate working days (Monday - Friday) safely across local timezone
+      const [sYear, sMonth, sDay] = start_date.split('-').map(Number);
+      const [eYear, eMonth, eDay] = end_date.split('-').map(Number);
+      const start = new Date(sYear, sMonth - 1, sDay);
+      const end = new Date(eYear, eMonth - 1, eDay);
+      if (end < start) return res.status(400).json({ error: 'End date must be after or equal to start date' });
       
       let days = 0;
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         if (d.getDay() !== 0 && d.getDay() !== 6) days++;
+      }
+
+      // 0-Day Working Range Block
+      if (days <= 0) {
+        return res.status(400).json({ error: 'Selected date range contains 0 working days (weekends only).' });
       }
 
       // Check leave balance
@@ -89,10 +103,10 @@ router.post('/apply', authMiddleware, (req, res) => {
       const overlap = db.prepare(`
         SELECT id FROM leave_requests 
         WHERE user_id = ? AND status != 'rejected'
-        AND ((start_date BETWEEN ? AND ?) OR (end_date BETWEEN ? AND ?) OR (start_date <= ? AND end_date >= ?))
-      `).get(req.user.id, start_date, end_date, start_date, end_date, start_date, end_date);
+        AND start_date <= ? AND end_date >= ?
+      `).get(req.user.id, end_date, start_date);
 
-      if (overlap) return res.status(400).json({ error: 'You already have a leave request for overlapping dates' });
+      if (overlap) return res.status(400).json({ error: 'You already have an active leave request for overlapping dates.' });
 
       // Save attachment url path if present
       const attachmentUrl = req.file ? `/uploads/leaves/${req.file.filename}` : null;
@@ -103,7 +117,7 @@ router.post('/apply', authMiddleware, (req, res) => {
       `).run(req.user.id, leave_type, start_date, end_date, days, reason || '', attachmentUrl);
 
       // Notify company admins of this new request
-      const admins = db.prepare('SELECT id FROM users WHERE company_id = ? AND role = "admin"').all(req.user.company_id);
+      const admins = db.prepare("SELECT id FROM users WHERE company_id = ? AND role = 'admin'").all(req.user.company_id);
       for (const admin of admins) {
         createNotification(admin.id, 'New Leave Request', `${req.user.first_name} ${req.user.last_name} applied for ${leave_type} leave.`, 'warning');
       }
@@ -208,11 +222,13 @@ router.put('/:id/approve', authMiddleware, adminOnly, (req, res) => {
     }
 
     // Mark attendance as leave for the dates
-    const start = new Date(leave.start_date);
-    const end = new Date(leave.end_date);
+    const [sYear, sMonth, sDay] = leave.start_date.split('-').map(Number);
+    const [eYear, eMonth, eDay] = leave.end_date.split('-').map(Number);
+    const start = new Date(sYear, sMonth - 1, sDay);
+    const end = new Date(eYear, eMonth - 1, eDay);
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       if (d.getDay() === 0 || d.getDay() === 6) continue;
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       db.prepare(`
         INSERT OR REPLACE INTO attendance (user_id, date, status, work_hours, extra_hours)
         VALUES (?, ?, 'leave', 0, 0)

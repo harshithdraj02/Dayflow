@@ -432,10 +432,15 @@ function ApplyLeaveModal({ onClose, onApplied, userName }) {
   const [loading, setLoading] = useState(false);
   const [days, setDays] = useState(0);
 
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
   useEffect(() => {
     if (form.start_date && form.end_date) {
-      const start = new Date(form.start_date);
-      const end = new Date(form.end_date);
+      const [sY, sM, sD] = form.start_date.split('-').map(Number);
+      const [eY, eM, eD] = form.end_date.split('-').map(Number);
+      const start = new Date(sY, sM - 1, sD);
+      const end = new Date(eY, eM - 1, eD);
       let count = 0;
       for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         if (d.getDay() !== 0 && d.getDay() !== 6) count++;
@@ -466,8 +471,21 @@ function ApplyLeaveModal({ onClose, onApplied, userName }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.start_date || !form.end_date) { setError('Please select dates'); return; }
-    if (days <= 0) { setError('Invalid date range'); return; }
+    if (!form.start_date || !form.end_date) { setError('Please select start and end dates'); return; }
+    if (form.start_date > form.end_date) { setError('End date cannot be earlier than start date'); return; }
+    
+    // Future Date Validation: Past date block with sick leave exemption
+    if (form.leave_type !== 'sick' && form.start_date < todayStr) {
+      setError('Leave start date cannot be in the past. Only sick leave may be applied retrospectively.');
+      return;
+    }
+
+    // 0-Day Working Range Block
+    if (days <= 0) {
+      setError('Selected date range contains 0 working days (weekends only).');
+      return;
+    }
+
     if (form.leave_type === 'sick' && !attachmentFile) {
       setError('Medical certificate upload is required for sick leave requests.');
       return;
@@ -528,19 +546,35 @@ function ApplyLeaveModal({ onClose, onApplied, userName }) {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div className="form-group">
               <label>Start Date</label>
-              <input className="form-input" type="date" value={form.start_date} onChange={e => setForm({...form, start_date: e.target.value})} />
+              <input 
+                className="form-input" 
+                type="date" 
+                value={form.start_date} 
+                min={form.leave_type === 'sick' ? undefined : todayStr}
+                onChange={e => setForm({...form, start_date: e.target.value})} 
+              />
             </div>
             <div className="form-group">
               <label>End Date</label>
-              <input className="form-input" type="date" value={form.end_date} onChange={e => setForm({...form, end_date: e.target.value})} />
+              <input 
+                className="form-input" 
+                type="date" 
+                value={form.end_date} 
+                min={form.leave_type === 'sick' ? undefined : (form.start_date || todayStr)}
+                onChange={e => setForm({...form, end_date: e.target.value})} 
+              />
             </div>
           </div>
-          {days > 0 && (
+          {days > 0 ? (
             <div style={{ background: 'var(--primary-glow)', padding: 12, borderRadius: 'var(--radius-sm)', marginBottom: 16, textAlign: 'center' }}>
               <span style={{ color: 'var(--primary)', fontWeight: 700, fontSize: 20 }}>{days}</span>
               <span style={{ color: 'var(--text-secondary)', fontSize: 13, marginLeft: 6 }}>working day{days > 1 ? 's' : ''}</span>
             </div>
-          )}
+          ) : (form.start_date && form.end_date && (
+            <div style={{ background: 'rgba(255, 107, 107, 0.1)', border: '1px solid var(--accent-red)', padding: 10, borderRadius: 'var(--radius-sm)', marginBottom: 16, textAlign: 'center', color: 'var(--accent-red)', fontSize: 13 }}>
+              0 working days selected (weekend dates)
+            </div>
+          ))}
           <div className="form-group">
             <label>Reason / Description</label>
             <textarea className="form-textarea" value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} placeholder="Reason for time off..." />
