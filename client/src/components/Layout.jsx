@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { api } from '../utils/api';
 import { Users, Clock, CalendarDays, User, LogOut, Settings, BarChart3, DollarSign, ChevronRight, Bell, X, Sun, Moon } from 'lucide-react';
 
 export default function Layout() {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, refreshUser } = useAuth();
+  const { theme, toggleTheme, isDark } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [theme, setTheme] = useState(localStorage.getItem('dayflow_theme') || 'light');
@@ -15,9 +17,12 @@ export default function Layout() {
   const [checkingIn, setCheckingIn] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotifDrawer, setShowNotifDrawer] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  
   const statusRef = useRef(null);
   const menuRef = useRef(null);
   const notifRef = useRef(null);
+  const logoInputRef = useRef(null);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -100,6 +105,28 @@ export default function Layout() {
     navigate('/login');
   };
 
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Logo file size must be less than 5MB');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    setUploadingLogo(true);
+    try {
+      await api.uploadCompanyLogo(formData);
+      if (refreshUser) await refreshUser();
+    } catch (err) {
+      alert(err.message);
+    }
+    setUploadingLogo(false);
+  };
+
   const isCheckedIn = todayStatus?.check_in && !todayStatus?.check_out;
   const isCheckedOut = todayStatus?.check_in && todayStatus?.check_out;
   const initials = user ? (user.first_name?.[0] || '') + (user.last_name?.[0] || '') : '?';
@@ -108,64 +135,92 @@ export default function Layout() {
     <div className="app-layout">
       <header className="app-header">
         <div className="header-left">
-          <NavLink to="/" className="header-brand" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {user?.company_logo ? (
-              <img 
-                src={user.company_logo} 
-                alt={user.company_name || 'Logo'} 
-                className="company-logo-img" 
-                style={{ 
-                  height: 32, 
-                  width: 'auto', 
-                  maxWidth: 120, 
-                  objectFit: 'contain', 
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  padding: '2px 6px'
-                }} 
-              />
-            ) : (
-              <h1>Dayflow</h1>
-            )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <NavLink to="/" className="brand-logo-container">
+              <div className="brand-icon-box">
+                {user?.company_logo ? (
+                  <img 
+                    src={user.company_logo} 
+                    alt={user.company_name || 'Logo'} 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} 
+                  />
+                ) : (
+                  <Sparkles size={22} color="#ffffff" />
+                )}
+              </div>
+              <span className="brand-text">Dayflow</span>
+            </NavLink>
+
             {user?.company_name && (
-              <span 
-                className="company-logo-name" 
-                style={{ 
-                  fontSize: 14, 
-                  fontWeight: 600, 
-                  color: 'var(--text-secondary)',
-                  opacity: 0.8,
-                  borderLeft: '1px solid var(--border-color)',
-                  paddingLeft: 10,
-                  display: 'inline-block'
-                }}
+              <div 
+                className="brand-company-badge" 
+                title={isAdmin ? "Click to change organization logo" : "Company Workspace"}
+                onClick={() => isAdmin && logoInputRef.current?.click()}
+                style={{ cursor: isAdmin ? 'pointer' : 'default' }}
               >
-                {user.company_name}
-              </span>
+                {user.company_logo ? (
+                  <img src={user.company_logo} alt={user.company_name} className="brand-company-logo-img" />
+                ) : (
+                  <Building size={14} style={{ color: 'var(--primary-light)' }} />
+                )}
+                <span>{user.company_name}</span>
+                {isAdmin && (
+                  <Camera size={12} style={{ opacity: 0.6, marginLeft: 2 }} />
+                )}
+              </div>
             )}
-          </NavLink>
+
+            {/* Hidden logo input for admin */}
+            {isAdmin && (
+              <input
+                type="file"
+                ref={logoInputRef}
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                style={{ display: 'none' }}
+                onChange={handleLogoUpload}
+                disabled={uploadingLogo}
+              />
+            )}
+          </div>
+
           <nav className="header-nav">
-            <NavLink to="/" end className={({ isActive }) => `header-nav-item ${isActive || location.pathname === '/employees' ? 'active' : ''}`}>
-              <Users size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-              Employees
+            <NavLink 
+              to="/" 
+              end 
+              className={({ isActive }) => `header-nav-item ${isActive || location.pathname === '/employees' ? 'active' : ''}`}
+            >
+              <Users size={16} />
+              <span>Directory</span>
             </NavLink>
-            <NavLink to="/attendance" className={({ isActive }) => `header-nav-item ${isActive ? 'active' : ''}`}>
-              <Clock size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-              Attendance
+            <NavLink 
+              to="/attendance" 
+              className={({ isActive }) => `header-nav-item ${isActive ? 'active' : ''}`}
+            >
+              <Clock size={16} />
+              <span>Attendance</span>
             </NavLink>
-            <NavLink to="/time-off" className={({ isActive }) => `header-nav-item ${isActive ? 'active' : ''}`}>
-              <CalendarDays size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-              Time Off
+            <NavLink 
+              to="/time-off" 
+              className={({ isActive }) => `header-nav-item ${isActive ? 'active' : ''}`}
+            >
+              <CalendarDays size={16} />
+              <span>Time Off</span>
             </NavLink>
             {isAdmin && (
               <>
-                <NavLink to="/payroll" className={({ isActive }) => `header-nav-item ${isActive ? 'active' : ''}`}>
-                  <DollarSign size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                  Payroll
+                <NavLink 
+                  to="/payroll" 
+                  className={({ isActive }) => `header-nav-item ${isActive ? 'active' : ''}`}
+                >
+                  <DollarSign size={16} />
+                  <span>Payroll</span>
                 </NavLink>
-                <NavLink to="/analytics" className={({ isActive }) => `header-nav-item ${isActive ? 'active' : ''}`}>
-                  <BarChart3 size={16} style={{ marginRight: 6, verticalAlign: 'middle' }} />
-                  Analytics
+                <NavLink 
+                  to="/analytics" 
+                  className={({ isActive }) => `header-nav-item ${isActive ? 'active' : ''}`}
+                >
+                  <BarChart3 size={16} />
+                  <span>Analytics</span>
                 </NavLink>
               </>
             )}
@@ -173,36 +228,67 @@ export default function Layout() {
         </div>
 
         <div className="header-right">
-          {/* Check-in/Check-out indicator */}
-          <div className="status-indicator" ref={statusRef}>
-            <div
-              className={`status-dot ${isCheckedIn ? 'checked-in' : 'checked-out'}`}
+          {/* Live Punch-In Status Toggle */}
+          <div style={{ position: 'relative' }} ref={statusRef}>
+            <div 
+              className="punch-status-widget"
               onClick={() => setShowStatusPopover(!showStatusPopover)}
-              title={isCheckedIn ? 'Checked In' : 'Not Checked In'}
-            />
+              title={isCheckedIn ? 'Checked In — Click for options' : isCheckedOut ? 'Session Completed' : 'Not Checked In'}
+            >
+              <div className={`status-dot ${isCheckedIn ? 'checked-in' : isCheckedOut ? 'checked-out' : ''}`} />
+              <span className="punch-status-text">
+                {isCheckedIn ? `In ${todayStatus.check_in}` : isCheckedOut ? 'Shift Done' : 'Punch In'}
+              </span>
+            </div>
+
             {showStatusPopover && (
-              <div className="status-popover">
-                {isCheckedIn ? (
-                  <>
-                    <p>Checked in since <span className="time">{todayStatus.check_in}</span></p>
-                    <button className="btn btn-danger btn-sm btn-full" onClick={handleCheckOut} disabled={checkingIn}>
-                      {checkingIn ? 'Processing...' : 'Check Out'} <ChevronRight size={14} />
-                    </button>
-                  </>
-                ) : isCheckedOut ? (
-                  <>
-                    <p>Today's session complete</p>
-                    <p>In: <span className="time">{todayStatus.check_in}</span> → Out: <span className="time">{todayStatus.check_out}</span></p>
-                    <p style={{ marginTop: 8, fontSize: 12 }}>Work: {todayStatus.work_hours?.toFixed(1)}h | Extra: {todayStatus.extra_hours?.toFixed(1)}h</p>
-                  </>
-                ) : (
-                  <>
-                    <p>You haven't checked in today</p>
-                    <button className="btn btn-success btn-sm btn-full" onClick={handleCheckIn} disabled={checkingIn}>
-                      {checkingIn ? 'Processing...' : 'Check In'} <ChevronRight size={14} />
-                    </button>
-                  </>
-                )}
+              <div className="user-menu" style={{ width: 260, top: 'calc(100% + 10px)' }}>
+                <div className="user-menu-header">
+                  <div className="user-menu-name">Attendance Punch</div>
+                  <div className="user-menu-email">
+                    {new Date().toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}
+                  </div>
+                </div>
+
+                <div style={{ padding: '8px 12px' }}>
+                  {isCheckedIn ? (
+                    <>
+                      <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
+                        Checked in at <span style={{ color: 'var(--accent-green)', fontWeight: 700 }}>{todayStatus.check_in}</span>
+                      </div>
+                      <button 
+                        className="btn btn-danger btn-sm btn-full" 
+                        onClick={handleCheckOut} 
+                        disabled={checkingIn}
+                      >
+                        {checkingIn ? 'Clocking Out...' : 'Clock Out Session'}
+                      </button>
+                    </>
+                  ) : isCheckedOut ? (
+                    <div style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+                      <p>Session completed for today.</p>
+                      <p style={{ marginTop: 4, fontWeight: 600, color: 'var(--text-primary)' }}>
+                        In: {todayStatus.check_in} → Out: {todayStatus.check_out}
+                      </p>
+                      <p style={{ marginTop: 4, fontSize: 12, color: 'var(--accent-green)' }}>
+                        Total: {todayStatus.work_hours?.toFixed(1)}h worked
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
+                        Start your workday and record your check-in.
+                      </p>
+                      <button 
+                        className="btn btn-success btn-sm btn-full" 
+                        onClick={handleCheckIn} 
+                        disabled={checkingIn}
+                      >
+                        {checkingIn ? 'Punching In...' : 'Punch In Now'} <ChevronRight size={14} />
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -224,13 +310,12 @@ export default function Layout() {
               onClick={() => setShowNotifDrawer(!showNotifDrawer)}
               title="Notifications"
             >
-              <Bell size={20} />
+              <Bell size={18} />
               {notifications.some(n => !n.is_read) && (
                 <span className="notification-badge" />
               )}
             </button>
 
-            {/* Slideout Drawer Panel */}
             {showNotifDrawer && (
               <div className="notification-slideout">
                 <div className="notif-header">
@@ -255,12 +340,12 @@ export default function Layout() {
                     notifications.map((n) => (
                       <div 
                         key={n.id} 
-                        className={`notif-item ${n.is_read ? 'read' : 'unread'} notif-type-${n.type || 'general'}`}
+                        className={`notif-item ${n.is_read ? 'read' : 'unread'}`}
                         onClick={() => !n.is_read && handleMarkAsRead(n.id)}
                       >
                         <div className="notif-item-header">
                           <span className="notif-title">{n.title}</span>
-                          {!n.is_read && <span className="notif-unread-dot" />}
+                          {!n.is_read && <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary-light)' }} />}
                         </div>
                         <p className="notif-message">{n.message}</p>
                         <span className="notif-time">
@@ -274,7 +359,7 @@ export default function Layout() {
             )}
           </div>
 
-          {/* User menu */}
+          {/* User Profile Menu */}
           <div style={{ position: 'relative' }} ref={menuRef}>
             <div className="user-avatar" onClick={() => setShowUserMenu(!showUserMenu)} style={{ overflow: 'hidden' }}>
               {user?.profile_picture ? (
@@ -289,18 +374,27 @@ export default function Layout() {
             </div>
             {showUserMenu && (
               <div className="user-menu">
-                <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{user.first_name} {user.last_name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{user.email}</div>
-                  <span className={`badge ${user.role === 'admin' ? 'badge-admin' : 'badge-employee'}`} style={{ marginTop: 6 }}>
-                    {user.role}
-                  </span>
+                <div className="user-menu-header">
+                  <div className="user-menu-name">{user.first_name} {user.last_name}</div>
+                  <div className="user-menu-email">{user.email}</div>
+                  <div style={{ marginTop: 6 }}>
+                    <span className={`badge ${user.role === 'admin' ? 'badge-admin' : 'badge-employee'}`}>
+                      {user.role}
+                    </span>
+                  </div>
                 </div>
-                <button className="user-menu-item" onClick={() => { setShowUserMenu(false); navigate(`/profile/${user.id}`); }}>
+
+                <button 
+                  className="user-menu-item" 
+                  onClick={() => { setShowUserMenu(false); navigate(`/profile/${user.id}`); }}
+                >
                   <User size={16} /> My Profile
                 </button>
                 {isAdmin && (
-                  <button className="user-menu-item" onClick={() => { setShowUserMenu(false); navigate('/payroll'); }}>
+                  <button 
+                    className="user-menu-item" 
+                    onClick={() => { setShowUserMenu(false); navigate('/payroll'); }}
+                  >
                     <DollarSign size={16} /> Payroll
                   </button>
                 )}

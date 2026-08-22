@@ -1,10 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Users, DollarSign, Calendar, TrendingUp } from 'lucide-react';
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer, 
+  PieChart, 
+  Pie, 
+  Cell 
+} from 'recharts';
+import { Users, DollarSign, Calendar, TrendingUp, BarChart3, PieChart as PieIcon, ShieldAlert } from 'lucide-react';
 
-const COLORS = ['#7c6aff', '#00d4aa', '#ff6b6b', '#ffd93d', '#60a5fa', '#a855f7'];
+const COLORS = ['#6366f1', '#06b6d4', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
 
 export default function AnalyticsPage() {
   const { isAdmin } = useAuth();
@@ -79,9 +91,10 @@ export default function AnalyticsPage() {
 
   if (!isAdmin) {
     return (
-      <div className="empty-state">
-        <h3>Access Denied</h3>
-        <p>Only HR Officers and Administrators can view organization analytics.</p>
+      <div style={{ textAlign: 'center', padding: '64px 20px', background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--border)' }}>
+        <ShieldAlert size={40} color="var(--accent-red-light)" style={{ marginBottom: 12 }} />
+        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Access Restricted</h3>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Only HR Officers and Administrators can view organization analytics.</p>
       </div>
     );
   }
@@ -95,29 +108,9 @@ export default function AnalyticsPage() {
   return (
     <div>
       <div className="page-header">
-        <h1>HR Analytics</h1>
-      </div>
-
-      <div className="stat-cards">
-        <div className="stat-card" style={{ '--card-accent': 'var(--primary)' }}>
-          <div className="stat-icon"><Users size={20} /></div>
-          <div className="stat-value">{overview?.totalEmployees || 0}</div>
-          <div className="stat-label">Total Staff Strength</div>
-        </div>
-        <div className="stat-card" style={{ '--card-accent': 'var(--accent-green)' }}>
-          <div className="stat-icon" style={{ background: 'rgba(74, 222, 128, 0.1)', color: 'var(--accent-green)' }}><TrendingUp size={20} /></div>
-          <div className="stat-value" style={{ color: 'var(--accent-green)' }}>{activePresenceRate}%</div>
-          <div className="stat-label">Today's Presence Rate</div>
-        </div>
-        <div className="stat-card" style={{ '--card-accent': 'var(--accent-blue)' }}>
-          <div className="stat-icon" style={{ background: 'rgba(96, 165, 250, 0.1)', color: 'var(--accent-blue)' }}><Calendar size={20} /></div>
-          <div className="stat-value" style={{ color: 'var(--accent-blue)' }}>{overview?.onLeaveToday || 0}</div>
-          <div className="stat-label">On Leave Today</div>
-        </div>
-        <div className="stat-card" style={{ '--card-accent': 'var(--accent-yellow)' }}>
-          <div className="stat-icon" style={{ background: 'rgba(255, 217, 61, 0.1)', color: 'var(--accent-yellow)' }}><DollarSign size={20} /></div>
-          <div className="stat-value" style={{ color: 'var(--accent-yellow)' }}>{fmt(payrollSum?.summary?.total_monthly_wage)}</div>
-          <div className="stat-label">Monthly Gross Spend</div>
+        <div>
+          <h1>Workforce Analytics & Trends</h1>
+          <p>Real-time attendance trends, headcount distributions, and compensation budget insights</p>
         </div>
       </div>
 
@@ -177,72 +170,84 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        <div className="chart-container">
-          <h3>Department Wise Staff Distribution</h3>
-          <div style={{ width: '100%', height: 300, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: '60%', height: '100%' }}>
-              <ResponsiveContainer>
-                <PieChart>
-                  <Pie
-                    data={deptStats}
-                    dataKey="count"
-                    nameKey="department"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                  >
-                    {deptStats.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ background: 'var(--bg-elevated)', borderColor: 'var(--border)' }} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+        {/* Headcount Distribution Donut */}
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-xl)', padding: 24, backdropFilter: 'blur(20px)' }}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <PieIcon size={18} color="var(--secondary-light)" />
+            <span>Department Headcount Distribution</span>
+          </h3>
+          <div style={{ width: '100%', height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ResponsiveContainer>
+              <PieChart>
+                <Pie
+                  data={deptStats}
+                  dataKey="count"
+                  nameKey="department"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={95}
+                  paddingAngle={4}
+                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                >
+                  {deptStats.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip 
+                  contentStyle={{ 
+                    background: 'var(--bg-elevated)', 
+                    borderColor: 'var(--border-light)', 
+                    borderRadius: 10,
+                    boxShadow: 'var(--shadow-lg)'
+                  }} 
+                />
+              </PieChart>
+            </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      <div className="charts-grid">
-        <div className="chart-container" style={{ gridColumn: 'span 2' }}>
-          <h3>Department Payroll Budget Breakdown</h3>
-          <div className="data-table-wrapper" style={{ marginTop: 12 }}>
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Department</th>
-                  <th>Staff Count</th>
-                  <th>Total Monthly Budget</th>
-                  <th>Average Monthly Wage</th>
-                  <th>Budget Share</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payrollSum?.byDepartment?.map((dept, index) => {
-                  const share = payrollSum.summary.total_monthly_wage
-                    ? ((dept.total_wage / payrollSum.summary.total_monthly_wage) * 100).toFixed(1)
-                    : 0;
-                  return (
-                    <tr key={dept.department}>
-                      <td style={{ fontWeight: 600 }}>{dept.department}</td>
-                      <td>{dept.count}</td>
-                      <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{fmt(dept.total_wage)}</td>
-                      <td>{fmt(dept.avg_wage)}</td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <span style={{ fontSize: 13, minWidth: 40 }}>{share}%</span>
-                          <div style={{ flex: 1, height: 6, background: 'var(--bg-hover)', borderRadius: 3, overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${share}%`, background: COLORS[index % COLORS.length], borderRadius: 3 }} />
-                          </div>
+      {/* Department Payroll Breakdown Table */}
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-xl)', padding: 24, backdropFilter: 'blur(20px)' }}>
+        <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>
+          Department Payroll Budget Allocation
+        </h3>
+        <div className="data-table-wrapper" style={{ marginTop: 0 }}>
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Department</th>
+                <th>Staff Count</th>
+                <th>Monthly Budget</th>
+                <th>Average Monthly Wage</th>
+                <th>Budget Share</th>
+              </tr>
+            </thead>
+            <tbody>
+              {payrollSum?.byDepartment?.map((dept, index) => {
+                const share = payrollSum.summary.total_monthly_wage
+                  ? ((dept.total_wage / payrollSum.summary.total_monthly_wage) * 100).toFixed(1)
+                  : 0;
+                return (
+                  <tr key={dept.department}>
+                    <td style={{ fontWeight: 700 }}>{dept.department}</td>
+                    <td>{dept.count} members</td>
+                    <td style={{ fontWeight: 700, color: 'var(--primary-light)' }}>{fmt(dept.total_wage)}</td>
+                    <td style={{ fontWeight: 600 }}>{fmt(dept.avg_wage)}</td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, minWidth: 44 }}>{share}%</span>
+                        <div style={{ flex: 1, height: 7, background: 'rgba(255, 255, 255, 0.08)', borderRadius: 4, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${share}%`, background: COLORS[index % COLORS.length], borderRadius: 4 }} />
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

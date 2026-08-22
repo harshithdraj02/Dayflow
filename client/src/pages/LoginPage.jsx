@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
+import { Eye, EyeOff, Sparkles, Lock, Mail, ArrowRight, Sun, Moon } from 'lucide-react';
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { theme, toggleTheme, isDark } = useTheme();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -20,7 +22,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password) { setError('Please enter email and password'); return; }
+    if (!email || !password) { setError('Please enter your email or employee ID and password'); return; }
     setError('');
     setLoading(true);
     try {
@@ -128,57 +130,128 @@ export default function LoginPage() {
 
   return (
     <div className="auth-page">
+      {/* Top Floating Theme Toggle */}
+      <div style={{ position: 'fixed', top: 24, right: 28, zIndex: 50 }}>
+        <button 
+          className="theme-toggle-btn"
+          onClick={toggleTheme}
+          title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          aria-label="Toggle Theme"
+        >
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+      </div>
+
       <div className="auth-container">
+        {/* Brand Header */}
         <div className="auth-logo">
+          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 52, height: 52, borderRadius: 'var(--radius)', background: 'var(--brand-gradient)', boxShadow: '0 0 24px -2px rgba(99, 102, 241, 0.6)', marginBottom: 14 }}>
+            <Sparkles size={28} color="#ffffff" />
+          </div>
           <h1>Dayflow</h1>
           <p>Every workday, perfectly aligned</p>
         </div>
+
         <div className="auth-card">
-          <h2>Sign In</h2>
-          {error && <div className="error-msg">{error}</div>}
+          <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Welcome Back</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 13.5, marginBottom: 24 }}>
+            Enter your employee credentials to access your workspace.
+          </p>
+
+          {error && (
+            <div style={{ padding: '12px 16px', background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.35)', borderRadius: 'var(--radius)', color: 'var(--accent-red-light)', fontSize: 13, marginBottom: 20 }}>
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label>Login ID / Email</label>
+              <label>Work Email or Employee ID</label>
               <input
                 type="text"
                 className="form-input"
-                placeholder="Enter your email or employee ID"
+                placeholder="priya.sharma@dayflow.com or ID"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoFocus
                 id="login-email"
+                required
               />
             </div>
+
             <div className="form-group">
-              <label>Password</label>
-              <div className="form-input-with-icon">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <label style={{ margin: 0 }}>Password</label>
+              </div>
+              <div style={{ position: 'relative' }}>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   className="form-input"
-                  placeholder="Enter your password"
+                  placeholder="••••••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   id="login-password"
+                  required
                 />
-                <button type="button" className="toggle-password" onClick={() => setShowPassword(!showPassword)}>
+                <button 
+                  type="button" 
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}
+                >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
-            <button type="submit" className="btn btn-primary btn-full btn-lg" disabled={loading} id="login-submit">
-              {loading ? 'Signing in...' : 'SIGN IN'}
+
+            <button 
+              type="submit" 
+              className="btn btn-primary btn-full btn-lg" 
+              disabled={loading} 
+              id="login-submit"
+              style={{ marginTop: 10 }}
+            >
+              {loading ? 'Authenticating...' : 'Sign In to Workspace'}
+              {!loading && <ArrowRight size={16} />}
             </button>
           </form>
+
+          {/* Quick-fill Demo Credential Chips */}
+          <div className="auth-demo-chips">
+            <div className="auth-demo-title">⚡ Instant Demo Accounts</div>
+            <div className="demo-chip-row">
+              <button 
+                type="button"
+                className="demo-chip" 
+                onClick={() => quickFill('priya.sharma@dayflow.com', 'Admin@123')}
+              >
+                👑 HR Admin (Priya)
+              </button>
+              <button 
+                type="button"
+                className="demo-chip" 
+                onClick={() => quickFill('arjun.patel@dayflow.com', 'Employee@123')}
+              >
+                💻 Senior Dev (Arjun)
+              </button>
+            </div>
+            <div className="demo-chip-row" style={{ marginTop: 8 }}>
+              <button 
+                type="button"
+                className="demo-chip" 
+                onClick={() => quickFill('charan.reddy@dayflow.com', 'Employee@123')}
+              >
+                🚀 Engineer (Charan)
+              </button>
+            </div>
+          </div>
         </div>
-        <div className="auth-footer" style={{ textAlign: 'center', marginTop: 16 }}>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-            Don't have an account?{' '}
-            <Link to="/register" style={{ color: 'var(--primary)', fontWeight: 'bold' }}>
-              Register Company
+
+        <div style={{ textAlign: 'center', marginTop: 24 }}>
+          <p style={{ fontSize: 13.5, color: 'var(--text-secondary)' }}>
+            New organization?{' '}
+            <Link to="/register-company" style={{ color: 'var(--primary-light)', fontWeight: 700, textDecoration: 'none' }}>
+              Register Your Company →
             </Link>
-          </p>
-          <p style={{ marginTop: 12, fontSize: 12, color: 'var(--text-muted)' }}>
-            Demo Admin: priya.sharma@dayflow.com / Admin@123
           </p>
         </div>
       </div>

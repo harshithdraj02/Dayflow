@@ -67,6 +67,46 @@ export default function ProfilePage() {
     setLoading(false);
   };
 
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image file size must be less than 5MB');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    setUploadingAvatar(true);
+    try {
+      await api.uploadAvatar(profileId, formData);
+      await loadProfile();
+      if (user.id === profileId && refreshUser) {
+        await refreshUser();
+      }
+    } catch (err) {
+      alert(err.message);
+    }
+    setUploadingAvatar(false);
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!window.confirm('Are you sure you want to remove this profile photo?')) return;
+    setUploadingAvatar(true);
+    try {
+      await api.removeAvatar(profileId);
+      await loadProfile();
+      if (user.id === profileId && refreshUser) {
+        await refreshUser();
+      }
+    } catch (err) {
+      alert(err.message);
+    }
+    setUploadingAvatar(false);
+  };
+
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
@@ -199,7 +239,6 @@ export default function ProfilePage() {
   };
 
   const canEdit = isAdmin || user.id === profileId;
-
   const fmt = (n) => n != null ? `₹${Number(n).toLocaleString('en-IN', { maximumFractionDigits: 0 })}` : '—';
 
   if (loading) return <div className="loading-spinner"><div className="spinner"></div></div>;
@@ -207,6 +246,7 @@ export default function ProfilePage() {
 
   return (
     <div className="profile-layout">
+      {/* Left Profile Sidebar Showcase */}
       <div className="profile-sidebar">
         {/* Profile Picture with Upload Camera Overlay */}
         <div style={{ position: 'relative', width: 100, height: 100, margin: '0 auto 16px' }}>
@@ -251,68 +291,70 @@ export default function ProfilePage() {
         <div className="profile-designation">{profile.designation}</div>
         <span className={`badge ${profile.role === 'admin' ? 'badge-admin' : 'badge-employee'}`}>{profile.role}</span>
 
-        <div style={{ marginTop: 20, textAlign: 'left' }}>
+        <div className="profile-name">{profile.first_name} {profile.last_name}</div>
+        <div className="profile-designation">{profile.designation || 'Team Member'}</div>
+        <span className={`badge ${profile.role === 'admin' ? 'badge-admin' : 'badge-employee'}`}>
+          {profile.role}
+        </span>
+
+        <div style={{ marginTop: 24, textAlign: 'left' }}>
           <div className="profile-info-item">
-            <Mail size={14} style={{ color: 'var(--text-muted)' }} />
+            <Mail size={15} style={{ color: 'var(--text-muted)' }} />
             <div>
-              <div className="label">Email</div>
-              <div className="value" style={{ fontSize: 12, wordBreak: 'break-all' }}>{profile.email}</div>
+              <div className="label">Work Email</div>
+              <div className="value" style={{ wordBreak: 'break-all' }}>{profile.email}</div>
             </div>
           </div>
           <div className="profile-info-item">
-            <Briefcase size={14} style={{ color: 'var(--text-muted)' }} />
+            <Briefcase size={15} style={{ color: 'var(--text-muted)' }} />
             <div>
-              <div className="label">ID</div>
-              <div className="value" style={{ fontSize: 12, fontFamily: 'monospace' }}>{profile.employee_id}</div>
+              <div className="label">Employee ID</div>
+              <div className="value" style={{ fontFamily: 'monospace', fontWeight: 700 }}>{profile.employee_id}</div>
             </div>
           </div>
           <div className="profile-info-item">
-            <Phone size={14} style={{ color: 'var(--text-muted)' }} />
+            <Phone size={15} style={{ color: 'var(--text-muted)' }} />
             <div>
               <div className="label">Mobile</div>
               <div className="value">{profile.phone || '—'}</div>
             </div>
           </div>
           <div className="profile-info-item">
-            <Building size={14} style={{ color: 'var(--text-muted)' }} />
+            <Building size={15} style={{ color: 'var(--text-muted)' }} />
             <div>
               <div className="label">Department</div>
               <div className="value">{profile.department}</div>
             </div>
           </div>
           <div className="profile-info-item">
-            <MapPin size={14} style={{ color: 'var(--text-muted)' }} />
+            <MapPin size={15} style={{ color: 'var(--text-muted)' }} />
             <div>
               <div className="label">Location</div>
-              <div className="value">{profile.location}</div>
+              <div className="value">{profile.location || 'Bangalore HQ'}</div>
             </div>
           </div>
           <div className="profile-info-item">
-            <Calendar size={14} style={{ color: 'var(--text-muted)' }} />
+            <Calendar size={15} style={{ color: 'var(--text-muted)' }} />
             <div>
-              <div className="label">Joined</div>
-              <div className="value">{profile.join_date ? new Date(profile.join_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</div>
-            </div>
-          </div>
-          <div className="profile-info-item">
-            <Building size={14} style={{ color: 'var(--text-muted)' }} />
-            <div>
-              <div className="label">Company</div>
-              <div className="value">{profile.company_name}</div>
+              <div className="label">Join Date</div>
+              <div className="value">
+                {profile.join_date ? new Date(profile.join_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Offboard Employee Button: Admin only & not self account */}
+        {/* Offboard Employee Button: Admin only & not self */}
         {isAdmin && user.id !== profileId && (
           <button
-            className="btn btn-danger"
-            style={{ width: '100%', marginTop: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+            className="btn btn-danger btn-full"
+            style={{ marginTop: 28 }}
             onClick={handleDeleteEmployee}
             disabled={deleting}
             id="offboard-employee-btn"
           >
-            <Trash2 size={15} /> {deleting ? 'Offboarding...' : 'Delete Employee Account'}
+            <Trash2 size={16} />
+            <span>{deleting ? 'Offboarding...' : 'Delete Employee Account'}</span>
           </button>
         )}
       </div>
@@ -325,11 +367,12 @@ export default function ProfilePage() {
           {(isAdmin || user.id === profileId) && <button className={`profile-tab ${activeTab === 'salary' ? 'active' : ''}`} onClick={() => setActiveTab('salary')}>Salary Info</button>}
         </div>
 
-        <div className="profile-tab-content">
+        <div className="profile-main-card">
+          {/* TAB 1: Personal & Bio */}
           {activeTab === 'private' && (
             <div>
-              <div className="flex-between mb-16">
-                <h3 style={{ fontSize: 18 }}>Personal Information</h3>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+                <h3 style={{ fontSize: 18, fontWeight: 700 }}>About & Passions</h3>
                 {canEdit && !editing && (
                   <button className="btn btn-secondary btn-sm" onClick={() => setEditing(true)}><Pencil size={14} /> Edit Profile</button>
                 )}
@@ -344,27 +387,48 @@ export default function ProfilePage() {
               <div className="profile-section">
                 <h3>About {canEdit && <Pencil size={14} className="edit-icon" onClick={() => setEditing(true)} />}</h3>
                 {editing ? (
-                  <textarea className="form-textarea" value={editForm.about} onChange={e => setEditForm({...editForm, about: e.target.value})} placeholder="Tell us about yourself..." />
+                  <textarea 
+                    className="form-textarea" 
+                    value={editForm.about} 
+                    onChange={e => setEditForm({...editForm, about: e.target.value})} 
+                    placeholder="Write a brief professional background..." 
+                  />
                 ) : (
-                  <p>{profile.about || 'No information added yet.'}</p>
+                  <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: 14.5 }}>
+                    {profile.about || 'No bio written yet.'}
+                  </p>
                 )}
               </div>
 
               <div className="profile-section">
                 <h3>What I love about my job {canEdit && <Pencil size={14} className="edit-icon" onClick={() => setEditing(true)} />}</h3>
                 {editing ? (
-                  <textarea className="form-textarea" value={editForm.job_love} onChange={e => setEditForm({...editForm, job_love: e.target.value})} placeholder="What do you love about your job?" />
+                  <textarea 
+                    className="form-textarea" 
+                    value={editForm.job_love} 
+                    onChange={e => setEditForm({...editForm, job_love: e.target.value})} 
+                    placeholder="What drives and inspires you at work..." 
+                  />
                 ) : (
-                  <p>{profile.job_love || 'No information added yet.'}</p>
+                  <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: 14.5 }}>
+                    {profile.job_love || 'No notes added yet.'}
+                  </p>
                 )}
               </div>
 
               <div className="profile-section">
                 <h3>My interests and hobbies {canEdit && <Pencil size={14} className="edit-icon" onClick={() => setEditing(true)} />}</h3>
                 {editing ? (
-                  <textarea className="form-textarea" value={editForm.interests} onChange={e => setEditForm({...editForm, interests: e.target.value})} placeholder="What are your interests?" />
+                  <textarea 
+                    className="form-textarea" 
+                    value={editForm.interests} 
+                    onChange={e => setEditForm({...editForm, interests: e.target.value})} 
+                    placeholder="Your hobbies, activities outside work..." 
+                  />
                 ) : (
-                  <p>{profile.interests || 'No information added yet.'}</p>
+                  <p style={{ color: 'var(--text-secondary)', lineHeight: 1.6, fontSize: 14.5 }}>
+                    {profile.interests || 'No hobbies listed yet.'}
+                  </p>
                 )}
               </div>
 
@@ -422,81 +486,110 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   )}
-                </>
+                </div>
               )}
             </div>
           )}
 
+          {/* TAB 2: Skills & Certifications */}
           {activeTab === 'resume' && (
             <div>
-              <div className="profile-section">
-                <h3>Skills</h3>
-                <div className="skills-grid">
-                  {profile.skills?.map((skill) => (
-                    <div key={skill.id} className="skill-tag">
-                      {skill.name}
-                      <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>({skill.level})</span>
-                      {canEdit && (
-                        <button className="remove-skill" onClick={() => handleDeleteSkill(skill.id)}><X size={12} /></button>
-                      )}
-                    </div>
-                  ))}
-                  {canEdit && (
-                    <button className="add-skill-btn" onClick={() => setShowAddSkill(true)}>
-                      <Plus size={14} /> Add Skills
-                    </button>
-                  )}
-                </div>
-                {showAddSkill && (
-                  <div style={{ display: 'flex', gap: 8, marginTop: 12, alignItems: 'end' }}>
-                    <div className="form-group" style={{ margin: 0, flex: 1 }}>
-                      <label>Skill Name</label>
-                      <input className="form-input" value={newSkill.name} onChange={e => setNewSkill({...newSkill, name: e.target.value})} placeholder="e.g. React" />
-                    </div>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label>Level</label>
-                      <select className="form-select" value={newSkill.level} onChange={e => setNewSkill({...newSkill, level: e.target.value})}>
-                        <option>Beginner</option>
-                        <option>Intermediate</option>
-                        <option>Advanced</option>
-                        <option>Expert</option>
-                      </select>
-                    </div>
-                    <button className="btn btn-primary btn-sm" onClick={handleAddSkill}>Add</button>
-                    <button className="btn btn-secondary btn-sm" onClick={() => setShowAddSkill(false)}><X size={14} /></button>
-                  </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <h3 style={{ fontSize: 18, fontWeight: 700 }}>Technical & Domain Skills</h3>
+                {canEdit && (
+                  <button className="btn btn-secondary btn-sm" onClick={() => setShowAddSkill(true)}>
+                    <Plus size={14} /> Add Skill
+                  </button>
                 )}
               </div>
 
-              <div className="profile-section" style={{ marginTop: 24 }}>
-                <h3>Certification</h3>
-                {profile.certifications?.map((cert) => (
-                  <div key={cert.id} className="cert-card">
-                    <div>
-                      <div className="cert-name">{cert.name}</div>
-                      <div className="cert-issuer">{cert.issuer} {cert.date && `• ${cert.date}`}</div>
-                    </div>
+              <div className="skills-cloud">
+                {profile.skills?.map((skill) => (
+                  <div key={skill.id} className="skill-pill">
+                    <span>{skill.name}</span>
+                    <span style={{ fontSize: 11, color: 'var(--primary-light)', background: 'rgba(99, 102, 241, 0.12)', padding: '2px 6px', borderRadius: 4 }}>
+                      {skill.level}
+                    </span>
                     {canEdit && (
-                      <button className="remove-cert" onClick={() => handleDeleteCert(cert.id)} title="Remove certification">
-                        <X size={14} />
+                      <button className="skill-remove-btn" onClick={() => handleDeleteSkill(skill.id)} title="Remove skill">
+                        <X size={13} />
                       </button>
                     )}
                   </div>
                 ))}
-                {canEdit && (
-                  <button className="add-skill-btn" onClick={() => setShowAddCert(true)} style={{ marginTop: 8 }}>
-                    <Plus size={14} /> Add Certification
-                  </button>
+                {(!profile.skills || profile.skills.length === 0) && (
+                  <p style={{ color: 'var(--text-muted)', fontSize: 13.5 }}>No skills added yet.</p>
                 )}
+              </div>
+
+              {showAddSkill && (
+                <div style={{ display: 'flex', gap: 10, marginTop: 16, alignItems: 'end', background: 'var(--bg-elevated)', padding: 16, borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
+                  <div className="form-group" style={{ margin: 0, flex: 1 }}>
+                    <label>Skill Name</label>
+                    <input 
+                      className="form-input" 
+                      value={newSkill.name} 
+                      onChange={e => setNewSkill({...newSkill, name: e.target.value})} 
+                      placeholder="e.g. React, Node.js, UI/UX" 
+                    />
+                  </div>
+                  <div className="form-group" style={{ margin: 0, width: 150 }}>
+                    <label>Proficiency</label>
+                    <select className="form-select" value={newSkill.level} onChange={e => setNewSkill({...newSkill, level: e.target.value})}>
+                      <option>Beginner</option>
+                      <option>Intermediate</option>
+                      <option>Advanced</option>
+                      <option>Expert</option>
+                    </select>
+                  </div>
+                  <button className="btn btn-primary btn-sm" onClick={handleAddSkill}>Add</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setShowAddSkill(false)}><X size={14} /></button>
+                </div>
+              )}
+
+              {/* Certifications Section */}
+              <div style={{ marginTop: 36 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <h3 style={{ fontSize: 18, fontWeight: 700 }}>Certifications & Honors</h3>
+                  {canEdit && (
+                    <button className="btn btn-secondary btn-sm" onClick={() => setShowAddCert(true)}>
+                      <Plus size={14} /> Add Certification
+                    </button>
+                  )}
+                </div>
+
+                <div className="certs-grid">
+                  {profile.certifications?.map((cert) => (
+                    <div key={cert.id} className="cert-card">
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                        <div style={{ width: 36, height: 36, borderRadius: 'var(--radius-sm)', background: 'rgba(99, 102, 241, 0.15)', color: 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <Award size={20} />
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 14.5 }}>{cert.name}</div>
+                          <div style={{ fontSize: 12.5, color: 'var(--text-secondary)', marginTop: 2 }}>
+                            {cert.issuer} {cert.date && `• ${cert.date}`}
+                          </div>
+                        </div>
+                      </div>
+                      {canEdit && (
+                        <button className="cert-card-remove" onClick={() => handleDeleteCert(cert.id)} title="Delete Certification">
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
                 {showAddCert && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 0.8fr auto auto', gap: 8, marginTop: 12, alignItems: 'end' }}>
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label>Name</label>
-                      <input className="form-input" value={newCert.name} onChange={e => setNewCert({...newCert, name: e.target.value})} placeholder="Certification name" />
+                      <label>Certificate Name</label>
+                      <input className="form-input" value={newCert.name} onChange={e => setNewCert({...newCert, name: e.target.value})} placeholder="AWS Certified Solutions Architect" />
                     </div>
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label>Issuer</label>
-                      <input className="form-input" value={newCert.issuer} onChange={e => setNewCert({...newCert, issuer: e.target.value})} placeholder="Issuing org" />
+                      <label>Issuing Organization / Year</label>
+                      <input className="form-input" value={newCert.issuer} onChange={e => setNewCert({...newCert, issuer: e.target.value})} placeholder="Amazon Web Services (2025)" />
                     </div>
                     <div className="form-group" style={{ margin: 0 }}>
                       <label>Date</label>
@@ -505,9 +598,6 @@ export default function ProfilePage() {
                     <button className="btn btn-primary btn-sm" onClick={handleAddCert}>Add</button>
                     <button className="btn btn-secondary btn-sm" onClick={() => setShowAddCert(false)}><X size={14} /></button>
                   </div>
-                )}
-                {(!profile.certifications || profile.certifications.length === 0) && !showAddCert && (
-                  <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>No certifications added yet.</p>
                 )}
               </div>
             </div>
@@ -616,129 +706,106 @@ export default function ProfilePage() {
 
           {activeTab === 'salary' && (isAdmin || user.id === profileId) && payroll && (
             <div>
-              <div className="flex-between mb-16 no-print">
-                <h3 style={{ fontSize: 18 }}>Salary Details</h3>
-                <button className="btn btn-secondary btn-sm flex items-center gap-4" onClick={() => window.print()}>
-                  <Download size={14} /> Download Payslip
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+                <h3 style={{ fontSize: 18, fontWeight: 700 }}>Compensation Package</h3>
+                <button className="btn btn-secondary btn-sm" onClick={() => window.print()}>
+                  <Download size={14} /> Download Official Payslip
                 </button>
               </div>
 
-              <div className="salary-grid no-print">
-                <div className="salary-card">
-                  <div className="salary-label">Month Wage</div>
-                  <div className="salary-value">{fmt(payroll.month_wage)} <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>/ Month</span></div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 28 }}>
+                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 20 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Monthly Gross Wage</div>
+                  <div style={{ fontSize: 30, fontWeight: 800, color: 'var(--text-primary)', marginTop: 4 }}>
+                    {fmt(payroll.month_wage)}
+                    <span style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 500, marginLeft: 6 }}>/ Month</span>
+                  </div>
                 </div>
-                <div className="salary-card">
-                  <div className="salary-label">Yearly Wage</div>
-                  <div className="salary-value">{fmt(payroll.yearly_wage)} <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>/ Year</span></div>
+
+                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 20 }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Annual Cost To Company (CTC)</div>
+                  <div style={{ fontSize: 30, fontWeight: 800, color: 'var(--accent-green-light)', marginTop: 4 }}>
+                    {fmt(payroll.yearly_wage)}
+                    <span style={{ fontSize: 14, color: 'var(--text-secondary)', fontWeight: 500, marginLeft: 6 }}>/ Year</span>
+                  </div>
                 </div>
               </div>
 
               {isAdmin && (
-                <div className="no-print" style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'end' }}>
+                <div style={{ display: 'flex', gap: 10, marginBottom: 28, alignItems: 'end', background: 'var(--bg-elevated)', padding: 18, borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
                   <div className="form-group" style={{ margin: 0, flex: 1 }}>
-                    <label>Update Monthly Wage (₹)</label>
+                    <label>Admin Compensation Adjustment (₹ / Month)</label>
                     <input className="form-input" type="number" value={editWage} onChange={e => setEditWage(e.target.value)} />
                   </div>
-                  <button className="btn btn-primary btn-sm" onClick={handleUpdateWage} disabled={savingWage}>
-                    {savingWage ? 'Saving...' : 'Update Salary'}
+                  <button className="btn btn-primary" onClick={handleUpdateWage} disabled={savingWage}>
+                    {savingWage ? 'Updating...' : 'Update Base Wage'}
                   </button>
                 </div>
               )}
 
-              {/* Printable Corporate Payslip */}
-              <div id="payslip-to-print" className="payslip-document">
-                <div className="payslip-header-print">
-                  <div className="payslip-comp-name">{profile.company_name || 'DAYFLOW HRMS'}</div>
-                  <div className="payslip-title">SALARY PAYSLIP</div>
-                  <div className="payslip-period">For the Month of {new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' })}</div>
+              {/* Salary Breakdown Table */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 20 }}>
+                  <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent-green-light)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
+                    Earnings Components
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13.5 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Basic Salary (50%)</span>
+                      <span style={{ fontWeight: 600 }}>{fmt(payroll.basic_salary)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>House Rent Allowance (HRA)</span>
+                      <span style={{ fontWeight: 600 }}>{fmt(payroll.hra)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Standard Allowance</span>
+                      <span style={{ fontWeight: 600 }}>{fmt(payroll.standard_allowance)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Performance Bonus</span>
+                      <span style={{ fontWeight: 600 }}>{fmt(payroll.performance_bonus)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Leave Travel Allowance</span>
+                      <span style={{ fontWeight: 600 }}>{fmt(payroll.lta)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Fixed Allowance</span>
+                      <span style={{ fontWeight: 600 }}>{fmt(payroll.fixed_allowance)}</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="payslip-meta-grid">
-                  <div>
-                    <strong>Employee ID:</strong> <span>{profile.employee_id}</span>
-                  </div>
-                  <div>
-                    <strong>Employee Name:</strong> <span>{profile.first_name} {profile.last_name}</span>
-                  </div>
-                  <div>
-                    <strong>Department:</strong> <span>{profile.department}</span>
-                  </div>
-                  <div>
-                    <strong>Designation:</strong> <span>{profile.designation}</span>
-                  </div>
-                  <div>
-                    <strong>Location:</strong> <span>{profile.location}</span>
-                  </div>
-                  <div>
-                    <strong>PF Account:</strong> <span>PF-{profile.employee_id}</span>
-                  </div>
-                </div>
-
-                <div className="payslip-columns">
-                  <div className="salary-breakdown">
-                    <div className="salary-breakdown-header">Salary Earnings Components</div>
-                    <div className="salary-row">
-                      <span className="label">Basic Salary <span className="hint">(50% of Gross)</span></span>
-                      <span className="value">{fmt(payroll.basic_salary)}</span>
+                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: 20 }}>
+                  <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--accent-red-light)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>
+                    Statutory Deductions
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, fontSize: 13.5 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Provident Fund (Employee 12%)</span>
+                      <span style={{ fontWeight: 600, color: 'var(--accent-red-light)' }}>-{fmt(payroll.pf_employee)}</span>
                     </div>
-                    <div className="salary-row">
-                      <span className="label">House Rent Allowance (HRA) <span className="hint">(50% of Basic)</span></span>
-                      <span className="value">{fmt(payroll.hra)}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>PF Employer Contribution</span>
+                      <span style={{ fontWeight: 600 }}>{fmt(payroll.pf_employer)}</span>
                     </div>
-                    <div className="salary-row">
-                      <span className="label">Standard Allowance <span className="hint">(16.67% of Basic)</span></span>
-                      <span className="value">{fmt(payroll.standard_allowance)}</span>
-                    </div>
-                    <div className="salary-row">
-                      <span className="label">Performance Bonus <span className="hint">(8.33% of Basic)</span></span>
-                      <span className="value">{fmt(payroll.performance_bonus)}</span>
-                    </div>
-                    <div className="salary-row">
-                      <span className="label">Leave Travel Allowance (LTA) <span className="hint">(8.33% of Basic)</span></span>
-                      <span className="value">{fmt(payroll.lta)}</span>
-                    </div>
-                    <div className="salary-row">
-                      <span className="label">Fixed Allowance <span className="hint">(Remainder)</span></span>
-                      <span className="value">{fmt(payroll.fixed_allowance)}</span>
-                    </div>
-                  </div>
-
-                  <div className="salary-breakdown">
-                    <div className="salary-breakdown-header">Salary Deductions</div>
-                    <div className="salary-row deduction">
-                      <span className="label">PF – Employee Contribution <span className="hint">(12% of Basic)</span></span>
-                      <span className="value">-{fmt(payroll.pf_employee)}</span>
-                    </div>
-                    <div className="salary-row deduction">
-                      <span className="label">PF – Employer Contribution <span className="hint">(12% of Basic)</span></span>
-                      <span className="value">{fmt(payroll.pf_employer)}</span>
-                    </div>
-                    <div className="salary-row deduction">
-                      <span className="label">Professional Tax</span>
-                      <span className="value">-{fmt(payroll.professional_tax)}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Professional Tax</span>
+                      <span style={{ fontWeight: 600, color: 'var(--accent-red-light)' }}>-{fmt(payroll.professional_tax)}</span>
                     </div>
                     {payroll.unpaid_days_this_month > 0 && (
-                      <div className="salary-row deduction" style={{ color: 'var(--accent-red)', fontWeight: 600 }}>
-                        <span className="label">Loss of Pay (LOP) Deduction <span className="hint">({payroll.unpaid_days_this_month} Unpaid Days Taken)</span></span>
-                        <span className="value">-{fmt(payroll.lop_deduction)}</span>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--accent-red-light)' }}>
+                        <span>Loss of Pay ({payroll.unpaid_days_this_month} unpaid days)</span>
+                        <span style={{ fontWeight: 700 }}>-{fmt(payroll.lop_deduction)}</span>
                       </div>
                     )}
-                    <div className="salary-row total">
-                      <span className="label">Net Salary Adjusted (Take Home)</span>
-                      <span className="value" style={{ color: 'var(--accent-green)' }}>{fmt(payroll.net_salary_adjusted)}</span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 14, marginTop: 6 }}>
+                      <span style={{ fontWeight: 700 }}>Net Take-Home Pay</span>
+                      <span style={{ fontWeight: 800, fontSize: 16, color: 'var(--accent-green-light)' }}>
+                        {fmt(payroll.net_salary_adjusted || payroll.net_salary)}
+                      </span>
                     </div>
-                  </div>
-                </div>
-
-                <div className="payslip-footer-print">
-                  <div className="payslip-sign-box">
-                    <div className="line"></div>
-                    <div>Employee Signature</div>
-                  </div>
-                  <div className="payslip-sign-box">
-                    <div className="line"></div>
-                    <div>Authorized HR Signatory</div>
                   </div>
                 </div>
               </div>

@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff, Upload, Building, User, Mail, Phone, Lock } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
+import { Eye, EyeOff, Upload, Building, User, Mail, Phone, Lock, Sparkles, ArrowRight, Sun, Moon } from 'lucide-react';
 
 export default function RegisterPage() {
   const { registerCompany } = useAuth();
+  const { theme, toggleTheme, isDark } = useTheme();
   const navigate = useNavigate();
 
   // State fields
@@ -31,7 +33,7 @@ export default function RegisterPage() {
   const [verifying, setVerifying] = useState(false);
 
   const handleFileChange = (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
         setError('Logo file size must be less than 5MB');
@@ -39,7 +41,6 @@ export default function RegisterPage() {
       }
       setLogoFile(file);
       setError('');
-      // Generate object URL for preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setLogoPreview(reader.result);
@@ -69,7 +70,6 @@ export default function RegisterPage() {
     setError('');
     setLoading(true);
 
-    // Prepare Multipart Form Data
     const formData = new FormData();
     formData.append('company_name', companyName);
     formData.append('admin_first_name', firstName);
@@ -186,42 +186,62 @@ export default function RegisterPage() {
 
   return (
     <div className="auth-page">
-      <div className="auth-container" style={{ maxWidth: '520px' }}>
+      {/* Top Floating Theme Toggle */}
+      <div style={{ position: 'fixed', top: 24, right: 28, zIndex: 50 }}>
+        <button 
+          className="theme-toggle-btn"
+          onClick={toggleTheme}
+          title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          aria-label="Toggle Theme"
+        >
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+      </div>
+
+      <div className="auth-container" style={{ maxWidth: '540px' }}>
         <div className="auth-logo">
+          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 52, height: 52, borderRadius: 'var(--radius)', background: 'var(--brand-gradient)', boxShadow: '0 0 24px -2px rgba(99, 102, 241, 0.6)', marginBottom: 14 }}>
+            <Sparkles size={28} color="#ffffff" />
+          </div>
           <h1>Dayflow</h1>
           <p>Every workday, perfectly aligned</p>
         </div>
+
         <div className="auth-card">
-          <h2>Register Company Admin</h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 20 }}>
-            Create a workspace for your company and initialize your Administrator account.
+          <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 6 }}>Register Your Company</h2>
+          <p style={{ color: 'var(--text-secondary)', fontSize: 13.5, marginBottom: 24 }}>
+            Initialize a multi-tenant workspace with your custom brand and HR Admin account.
           </p>
 
-          {error && <div className="error-msg">{error}</div>}
+          {error && (
+            <div style={{ padding: '12px 16px', background: 'rgba(244, 63, 94, 0.15)', border: '1px solid rgba(244, 63, 94, 0.35)', borderRadius: 'var(--radius)', color: 'var(--accent-red-light)', fontSize: 13, marginBottom: 20 }}>
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit}>
-            {/* Logo Upload Section */}
+            {/* Logo Upload */}
             <div className="form-group">
-              <label>Company Logo</label>
-              <div className="logo-upload-box">
+              <label>Company Brand Logo (Optional)</label>
+              <div style={{ border: '1px dashed var(--border)', background: 'var(--bg-input)', borderRadius: 'var(--radius)', padding: 16, textAlign: 'center' }}>
                 {logoPreview ? (
-                  <div className="logo-preview-container">
-                    <img src={logoPreview} alt="Logo preview" className="logo-upload-preview" />
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <img src={logoPreview} alt="Logo" style={{ maxHeight: 36, maxWidth: 100, objectFit: 'contain' }} />
+                      <span style={{ fontSize: 12.5, color: 'var(--text-primary)' }}>{logoFile?.name}</span>
+                    </div>
                     <button
                       type="button"
                       className="btn btn-secondary btn-sm"
-                      onClick={() => {
-                        setLogoFile(null);
-                        setLogoPreview('');
-                      }}
+                      onClick={() => { setLogoFile(null); setLogoPreview(''); }}
                     >
                       Remove
                     </button>
                   </div>
                 ) : (
-                  <label className="logo-placeholder-label">
-                    <Upload size={24} className="upload-icon" />
-                    <span>Upload Logo (optional, max 5MB)</span>
+                  <label style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <Upload size={22} color="var(--primary-light)" />
+                    <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>Upload brand logo (PNG, JPG, SVG - max 5MB)</span>
                     <input
                       type="file"
                       accept="image/*"
@@ -233,127 +253,108 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Company Info */}
             <div className="form-group">
-              <label className="required-label">Company Name</label>
-              <div className="form-input-with-icon">
+              <label>Company Name *</label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="e.g. Acme Technologies Inc."
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="form-row">
+              <div className="form-group">
+                <label>Admin First Name *</label>
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Acme Corp"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
+                  placeholder="e.g. Priya"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
                   required
                 />
-                <Building size={16} className="input-field-icon" />
+              </div>
+              <div className="form-group">
+                <label>Admin Last Name *</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. Sharma"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                />
               </div>
             </div>
 
-            {/* Personal Details */}
-            <div style={{ display: 'flex', gap: 12 }}>
-              <div className="form-group" style={{ flex: 1 }}>
-                <label className="required-label">Admin First Name</label>
-                <div className="form-input-with-icon">
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="John"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    required
-                  />
-                  <User size={16} className="input-field-icon" />
-                </div>
-              </div>
-              <div className="form-group" style={{ flex: 1 }}>
-                <label className="required-label">Admin Last Name</label>
-                <div className="form-input-with-icon">
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="Doe"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    required
-                  />
-                  <User size={16} className="input-field-icon" />
-                </div>
-              </div>
-            </div>
-
-            {/* Contact Details */}
-            <div className="form-group">
-              <label className="required-label">Admin Email Address</label>
-              <div className="form-input-with-icon">
+            <div className="form-row">
+              <div className="form-group">
+                <label>Admin Work Email *</label>
                 <input
                   type="email"
                   className="form-input"
-                  placeholder="john.doe@company.com"
+                  placeholder="priya@acme.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                 />
-                <Mail size={16} className="input-field-icon" />
               </div>
-            </div>
-
-            <div className="form-group">
-              <label>Phone Number (optional)</label>
-              <div className="form-input-with-icon">
+              <div className="form-group">
+                <label>Phone Number</label>
                 <input
                   type="tel"
-                  autoComplete="new-phone"
                   className="form-input"
-                  placeholder="e.g. +91 98765 43210"
+                  placeholder="+91 98765 43210"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                 />
-                <Phone size={16} className="input-field-icon" />
               </div>
             </div>
 
-            {/* Passwords */}
-            <div className="form-group">
-              <label className="required-label">Password</label>
-              <div className="form-input-with-icon">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  className="form-input"
-                  placeholder="Enter a secure password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-                <Lock size={16} className="input-field-icon" />
-                <button
-                  type="button"
-                  className="toggle-password"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+            <div className="form-row">
+              <div className="form-group">
+                <label>Password (min 8 chars) *</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    className="form-input"
+                    placeholder="••••••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <div className="form-group">
-              <label className="required-label">Confirm Password</label>
-              <div className="form-input-with-icon">
-                <input
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  className="form-input"
-                  placeholder="Verify password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  required
-                />
-                <Lock size={16} className="input-field-icon" />
-                <button
-                  type="button"
-                  className="toggle-password"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+              <div className="form-group">
+                <label>Confirm Password *</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    className="form-input"
+                    placeholder="••••••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex' }}
+                  >
+                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -361,18 +362,19 @@ export default function RegisterPage() {
               type="submit"
               className="btn btn-primary btn-full btn-lg"
               disabled={loading}
-              style={{ marginTop: 24 }}
+              style={{ marginTop: 12 }}
             >
-              {loading ? 'Initializing company...' : 'REGISTER & GET STARTED'}
+              {loading ? 'Setting Up Workspace...' : 'Launch Company Workspace'}
+              {!loading && <ArrowRight size={16} />}
             </button>
           </form>
         </div>
 
-        <div className="auth-footer" style={{ textAlign: 'center', marginTop: 20 }}>
-          <p style={{ color: 'var(--text-muted)' }}>
-            Already have an Account?{' '}
-            <Link to="/login" style={{ color: 'var(--primary)', fontWeight: 'bold' }}>
-              Sign In
+        <div style={{ textAlign: 'center', marginTop: 24 }}>
+          <p style={{ fontSize: 13.5, color: 'var(--text-secondary)' }}>
+            Already registered?{' '}
+            <Link to="/login" style={{ color: 'var(--primary-light)', fontWeight: 700, textDecoration: 'none' }}>
+              Sign In Instead →
             </Link>
           </p>
         </div>
