@@ -24,6 +24,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/" /> : <LoginPage />} />
       <Route path="/register" element={user ? <Navigate to="/" /> : <RegisterPage />} />
+      <Route path="/register-company" element={user ? <Navigate to="/" /> : <RegisterPage />} />
       <Route path="/" element={
         <ProtectedRoute>
           <Layout />
