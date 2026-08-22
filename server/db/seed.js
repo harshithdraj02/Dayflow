@@ -23,11 +23,13 @@ async function seed() {
   console.log('🌱 Seeding database...');
 
   // Clear existing data
+  try { db.exec('DELETE FROM sqlite_sequence'); } catch {}
   db.exec('DELETE FROM holidays');
   db.exec('DELETE FROM payroll');
   db.exec('DELETE FROM leave_balance');
   db.exec('DELETE FROM leave_requests');
   db.exec('DELETE FROM attendance');
+  db.exec('DELETE FROM notifications');
   db.exec('DELETE FROM certifications');
   db.exec('DELETE FROM skills');
   db.exec('DELETE FROM users');
@@ -35,7 +37,8 @@ async function seed() {
 
   // Create company
   const companyStmt = db.prepare('INSERT INTO companies (name, logo) VALUES (?, ?)');
-  companyStmt.run('Dayflow Technologies', null);
+  const compRes = companyStmt.run('Dayflow Technologies', null);
+  const companyId = compRes.lastInsertRowid;
   
   // Hash passwords
   const adminPass = await bcrypt.hash('Admin@123', 10);
@@ -51,7 +54,7 @@ async function seed() {
     generateEmployeeId('Priya', 'Sharma', 2024, 1),
     'priya.sharma@dayflow.com', adminPass, 'admin',
     'Priya', 'Sharma', '+91 98765 43210',
-    'Human Resources', 'HR Director', 1, 'Bangalore HQ',
+    'Human Resources', 'HR Director', companyId, 'Bangalore HQ',
     '2024-01-15',
     'Passionate HR professional with 10+ years of experience in building great teams.',
     'Connecting people with their dream roles and watching them grow.',
@@ -75,7 +78,7 @@ async function seed() {
       generateEmployeeId(emp.first, emp.last, emp.year, emp.serial),
       emp.email, empPass, 'employee',
       emp.first, emp.last, emp.phone,
-      emp.dept, emp.desig, 1, 'Bangalore HQ',
+      emp.dept, emp.desig, companyId, 'Bangalore HQ',
       emp.join, emp.about, emp.love, emp.interests
     );
   }

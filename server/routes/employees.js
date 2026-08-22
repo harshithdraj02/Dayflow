@@ -38,7 +38,7 @@ router.get('/', authMiddleware, (req, res) => {
                about, job_love, interests
         FROM users WHERE id = ?
       `).get(req.user.id);
-      res.json([user]);
+      res.json(user ? [user] : []);
     }
   } catch (err) {
     console.error('Get employees error:', err);
@@ -155,6 +155,54 @@ router.post('/:id/certifications', authMiddleware, (req, res) => {
     res.status(201).json({ id: result.lastInsertRowid, user_id: id, name, issuer, date });
   } catch (err) {
     res.status(500).json({ error: 'Failed to add certification' });
+  }
+});
+
+// DELETE /api/employees/:id/certifications/:certId
+router.delete('/:id/certifications/:certId', authMiddleware, (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (req.user.role !== 'admin' && req.user.id !== id) return res.status(403).json({ error: 'Access denied' });
+    
+    const certId = parseInt(req.params.certId);
+    db.prepare('DELETE FROM certifications WHERE id = ? AND user_id = ?').run(certId, id);
+    res.json({ message: 'Certification removed' });
+  } catch (err) {
+    console.error('Delete certification error:', err);
+    res.status(500).json({ error: 'Failed to remove certification' });
+  }
+});
+
+// DELETE /api/employees/:id - Admin only: Offboard employee
+router.delete('/:id', authMiddleware, adminOnly, (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+
+    // Safety Guard: Admins cannot delete their own account
+    if (req.user.id === id) {
+      return res.status(403).json({ error: 'Admins cannot delete their own account.' });
+    }
+
+    // Verify employee exists and belongs to admin's company
+    const emp = db.prepare('SELECT id, company_id, first_name, last_name FROM users WHERE id = ?').get(id);
+    if (!emp) {
+      return res.status(404).json({ error: 'Employee not found.' });
+    }
+    if (emp.company_id !== req.user.company_id) {
+      return res.status(403).json({ error: 'Access denied: Employee belongs to a different company.' });
+    }
+
+    // Clear nullable foreign key references (manager_id, reviewed_by)
+    db.prepare('UPDATE users SET manager_id = NULL WHERE manager_id = ?').run(id);
+    db.prepare('UPDATE leave_requests SET reviewed_by = NULL WHERE reviewed_by = ?').run(id);
+
+    // Delete user (cascades to skills, certs, attendance, leaves, balance, payroll, notifications)
+    db.prepare('DELETE FROM users WHERE id = ?').run(id);
+
+    res.json({ message: `Employee ${emp.first_name} ${emp.last_name} offboarded and deleted successfully.` });
+  } catch (err) {
+    console.error('Delete employee error:', err);
+    res.status(500).json({ error: 'Failed to offboard employee.' });
   }
 });
 

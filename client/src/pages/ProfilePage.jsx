@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
-import { Pencil, X, Plus, Save, Mail, Phone, MapPin, Building, Briefcase, Calendar, Download } from 'lucide-react';
+import { Pencil, X, Plus, Save, Mail, Phone, MapPin, Building, Briefcase, Calendar, Download, Trash2 } from 'lucide-react';
 
 export default function ProfilePage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
   const profileId = id ? parseInt(id) : user.id;
   const [profile, setProfile] = useState(null);
@@ -15,6 +16,7 @@ export default function ProfilePage() {
   const [editForm, setEditForm] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [showAddSkill, setShowAddSkill] = useState(false);
   const [showAddCert, setShowAddCert] = useState(false);
   const [newSkill, setNewSkill] = useState({ name: '', level: 'Intermediate' });
@@ -60,6 +62,21 @@ export default function ProfilePage() {
     setSaving(false);
   };
 
+  const handleDeleteEmployee = async () => {
+    if (!window.confirm(`Are you sure you want to offboard and permanently delete ${profile.first_name} ${profile.last_name}? This action cannot be undone.`)) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await api.deleteEmployee(profileId);
+      alert(`Employee ${profile.first_name} ${profile.last_name} has been offboarded successfully.`);
+      navigate('/');
+    } catch (err) {
+      alert(err.message);
+      setDeleting(false);
+    }
+  };
+
   const handleAddSkill = async () => {
     if (!newSkill.name) return;
     try {
@@ -83,6 +100,13 @@ export default function ProfilePage() {
       await api.addCertification(profileId, newCert);
       setNewCert({ name: '', issuer: '', date: '' });
       setShowAddCert(false);
+      await loadProfile();
+    } catch (err) { alert(err.message); }
+  };
+
+  const handleDeleteCert = async (certId) => {
+    try {
+      await api.deleteCertification(profileId, certId);
       await loadProfile();
     } catch (err) { alert(err.message); }
   };
@@ -164,6 +188,19 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+
+        {/* Offboard Employee Button: Admin only & not self account */}
+        {isAdmin && user.id !== profileId && (
+          <button
+            className="btn btn-danger"
+            style={{ width: '100%', marginTop: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+            onClick={handleDeleteEmployee}
+            disabled={deleting}
+            id="offboard-employee-btn"
+          >
+            <Trash2 size={15} /> {deleting ? 'Offboarding...' : 'Delete Employee Account'}
+          </button>
+        )}
       </div>
 
       <div className="profile-content">
@@ -296,8 +333,15 @@ export default function ProfilePage() {
                 <h3>Certification</h3>
                 {profile.certifications?.map((cert) => (
                   <div key={cert.id} className="cert-card">
-                    <div className="cert-name">{cert.name}</div>
-                    <div className="cert-issuer">{cert.issuer} {cert.date && `• ${cert.date}`}</div>
+                    <div>
+                      <div className="cert-name">{cert.name}</div>
+                      <div className="cert-issuer">{cert.issuer} {cert.date && `• ${cert.date}`}</div>
+                    </div>
+                    {canEdit && (
+                      <button className="remove-cert" onClick={() => handleDeleteCert(cert.id)} title="Remove certification">
+                        <X size={14} />
+                      </button>
+                    )}
                   </div>
                 ))}
                 {canEdit && (

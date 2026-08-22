@@ -30,9 +30,11 @@ export const api = {
   getEmployees: () => request('/employees'),
   getEmployee: (id) => request(`/employees/${id}`),
   updateEmployee: (id, data) => request(`/employees/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteEmployee: (id) => request(`/employees/${id}`, { method: 'DELETE' }),
   addSkill: (id, data) => request(`/employees/${id}/skills`, { method: 'POST', body: JSON.stringify(data) }),
   deleteSkill: (id, skillId) => request(`/employees/${id}/skills/${skillId}`, { method: 'DELETE' }),
   addCertification: (id, data) => request(`/employees/${id}/certifications`, { method: 'POST', body: JSON.stringify(data) }),
+  deleteCertification: (id, certId) => request(`/employees/${id}/certifications/${certId}`, { method: 'DELETE' }),
 
   // Attendance
   checkIn: () => request('/attendance/check-in', { method: 'POST' }),

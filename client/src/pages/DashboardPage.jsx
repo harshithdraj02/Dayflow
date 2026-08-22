@@ -20,7 +20,11 @@ export default function DashboardPage() {
   const loadData = async () => {
     try {
       const empData = await api.getEmployees();
-      setEmployees(empData);
+      if (Array.isArray(empData)) {
+        setEmployees(empData);
+      } else {
+        setEmployees([]);
+      }
       if (isAdmin) {
         const ov = await api.getOverview();
         setOverview(ov);
@@ -29,17 +33,23 @@ export default function DashboardPage() {
     setLoading(false);
   };
 
-  const filtered = employees.filter(e =>
-    `${e.first_name} ${e.last_name} ${e.department} ${e.designation}`.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = Array.isArray(employees)
+    ? employees.filter(e =>
+        e && `${e.first_name || ''} ${e.last_name || ''} ${e.department || ''} ${e.designation || ''}`
+          .toLowerCase()
+          .includes((search || '').toLowerCase())
+      )
+    : [];
 
   const getStatusClass = (emp) => {
+    if (!emp) return 'absent';
     if (emp.attendance_status === 'leave') return 'leave';
     if (emp.attendance_status === 'present' || emp.today_check_in) return 'present';
     return 'absent';
   };
 
   const getStatusIcon = (emp) => {
+    if (!emp) return null;
     const status = getStatusClass(emp);
     if (status === 'leave') return '✈️';
     if (status === 'present') return null;
