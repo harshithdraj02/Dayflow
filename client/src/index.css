@@ -731,9 +731,16 @@ html, body, #root {
   text-align: center;
 }
 
+.profile-avatar-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
 .profile-avatar {
-  width: 100px;
-  height: 100px;
+  width: 108px;
+  height: 108px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--primary), var(--secondary));
   display: flex;
@@ -742,7 +749,60 @@ html, body, #root {
   font-size: 36px;
   font-weight: 700;
   color: white;
-  margin: 0 auto 16px;
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+  border: 3px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.profile-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.profile-avatar-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(10, 10, 18, 0.75);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: var(--transition);
+  opacity: 0.85;
+}
+
+.profile-avatar-overlay:hover {
+  opacity: 1;
+  background: rgba(124, 106, 255, 0.85);
+}
+
+.remove-avatar-btn {
+  background: none;
+  border: none;
+  color: var(--accent-red);
+  font-size: 12px;
+  cursor: pointer;
+  margin-top: 8px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: var(--transition);
+}
+
+.remove-avatar-btn:hover {
+  text-decoration: underline;
+  background: rgba(255, 107, 107, 0.1);
 }
 
 .profile-name { font-size: 20px; font-weight: 700; margin-bottom: 4px; }

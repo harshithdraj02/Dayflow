@@ -12,6 +12,7 @@ export default function AttendancePage() {
   const [myData, setMyData] = useState(null);
   const [adminData, setAdminData] = useState([]);
   const [adminDate, setAdminDate] = useState(new Date().toISOString().split('T')[0]);
+  const [typedDate, setTypedDate] = useState(new Date().toISOString().split('T')[0]);
   const [loading, setLoading] = useState(true);
   const [activeView, setActiveView] = useState(isAdmin ? 'admin' : 'employee');
   const [search, setSearch] = useState('');
@@ -19,6 +20,10 @@ export default function AttendancePage() {
   useEffect(() => {
     loadData();
   }, [month, year, adminDate, activeView]);
+
+  useEffect(() => {
+    setTypedDate(adminDate);
+  }, [adminDate]);
 
   const loadData = async () => {
     setLoading(true);
@@ -28,8 +33,10 @@ export default function AttendancePage() {
         setMyData(data);
       }
       if (activeView === 'admin' && isAdmin) {
-        const data = await api.getAllAttendance({ date: adminDate });
-        setAdminData(data);
+        if (/^\d{4}-\d{2}-\d{2}$/.test(adminDate)) {
+          const data = await api.getAllAttendance({ date: adminDate });
+          setAdminData(data);
+        }
       }
     } catch (err) { console.error(err); }
     setLoading(false);
@@ -46,15 +53,66 @@ export default function AttendancePage() {
   };
 
   const prevDay = () => {
-    const d = new Date(adminDate);
-    d.setDate(d.getDate() - 1);
-    setAdminDate(d.toISOString().split('T')[0]);
+    const [y, m, d] = adminDate.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setDate(dt.getDate() - 1);
+    const nextStr = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    setAdminDate(nextStr);
   };
 
   const nextDay = () => {
-    const d = new Date(adminDate);
-    d.setDate(d.getDate() + 1);
-    setAdminDate(d.toISOString().split('T')[0]);
+    const [y, m, d] = adminDate.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    dt.setDate(dt.getDate() + 1);
+    const nextStr = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    setAdminDate(nextStr);
+  };
+
+  const setToday = () => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    setAdminDate(todayStr);
+  };
+
+  const handleDateTyped = (val) => {
+    setTypedDate(val);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+      const [y, m, d] = val.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      if (!isNaN(dt.getTime())) {
+        setAdminDate(val);
+      }
+    }
+  };
+
+  const handleDateBlurOrEnter = (e) => {
+    if (e.key && e.key !== 'Enter') return;
+    let parsed = typedDate.trim();
+    // Support DD-MM-YYYY or DD/MM/YYYY
+    if (/^\d{1,2}[-/]\d{1,2}[-/]\d{4}$/.test(parsed)) {
+      const parts = parsed.split(/[-/]/);
+      const day = parts[0].padStart(2, '0');
+      const mo = parts[1].padStart(2, '0');
+      const yr = parts[2];
+      parsed = `${yr}-${mo}-${day}`;
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(parsed)) {
+      const [y, m, d] = parsed.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      if (!isNaN(dt.getTime())) {
+        setAdminDate(parsed);
+        setTypedDate(parsed);
+        return;
+      }
+    }
+    setTypedDate(adminDate);
+  };
+
+  const formatAdminDateLabel = (dateStr) => {
+    if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return 'Selected Date';
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    if (isNaN(dt.getTime())) return dateStr;
+    return dt.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   };
 
   const getStatusBadge = (status) => {
@@ -63,7 +121,7 @@ export default function AttendancePage() {
   };
 
   const filteredAdmin = adminData.filter(r =>
-    `${r.first_name} ${r.last_name} ${r.department}`.toLowerCase().includes(search.toLowerCase())
+    `${r.first_name || ''} ${r.last_name || ''} ${r.department || ''}`.toLowerCase().includes((search || '').toLowerCase())
   );
 
   if (loading) return <div className="loading-spinner"><div className="spinner"></div></div>;
@@ -90,13 +148,40 @@ export default function AttendancePage() {
             </div>
           </div>
 
-          <div className="month-nav">
-            <button onClick={prevDay}><ChevronLeft size={18} /></button>
-            <div className="month-label">
-              {new Date(adminDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          <div className="month-nav" style={{ flexWrap: 'wrap', gap: 10 }}>
+            <button onClick={prevDay} title="Previous Day"><ChevronLeft size={18} /></button>
+            <div className="month-label" style={{ minWidth: 220, textAlign: 'center' }}>
+              {formatAdminDateLabel(adminDate)}
             </div>
-            <button onClick={nextDay}><ChevronRight size={18} /></button>
-            <input type="date" className="form-input" style={{ width: 160, padding: '8px 12px' }} value={adminDate} onChange={e => setAdminDate(e.target.value)} />
+            <button onClick={nextDay} title="Next Day"><ChevronRight size={18} /></button>
+            <button 
+              className="btn btn-secondary btn-sm" 
+              onClick={setToday}
+              style={{ padding: '6px 12px', fontSize: 12 }}
+            >
+              Today
+            </button>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="YYYY-MM-DD"
+                style={{ width: 130, padding: '7px 10px', fontSize: 13, textAlign: 'center' }}
+                value={typedDate}
+                onChange={e => handleDateTyped(e.target.value)}
+                onBlur={handleDateBlurOrEnter}
+                onKeyDown={handleDateBlurOrEnter}
+                title="Type date as YYYY-MM-DD or DD-MM-YYYY and press Enter"
+              />
+              <input
+                type="date"
+                className="form-input"
+                style={{ width: 44, padding: '7px 8px', cursor: 'pointer' }}
+                value={adminDate}
+                onChange={e => setAdminDate(e.target.value)}
+                title="Choose from calendar"
+              />
+            </div>
           </div>
 
           <div className="data-table-wrapper">

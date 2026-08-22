@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
-import { Pencil, X, Plus, Save, Mail, Phone, MapPin, Building, Briefcase, Calendar, Download, Trash2 } from 'lucide-react';
+import { Pencil, X, Plus, Save, Mail, Phone, MapPin, Building, Briefcase, Calendar, Download, Trash2, Camera } from 'lucide-react';
 
 export default function ProfilePage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, refreshUser } = useAuth();
   const profileId = id ? parseInt(id) : user.id;
   const [profile, setProfile] = useState(null);
   const [payroll, setPayroll] = useState(null);
@@ -17,6 +17,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [showAddSkill, setShowAddSkill] = useState(false);
   const [showAddCert, setShowAddCert] = useState(false);
   const [newSkill, setNewSkill] = useState({ name: '', level: 'Intermediate' });
@@ -50,6 +51,46 @@ export default function ProfilePage() {
       } catch { /* no payroll */ }
     } catch (err) { console.error(err); }
     setLoading(false);
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image file size must be less than 5MB');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    setUploadingAvatar(true);
+    try {
+      await api.uploadAvatar(profileId, formData);
+      await loadProfile();
+      if (user.id === profileId && refreshUser) {
+        await refreshUser();
+      }
+    } catch (err) {
+      alert(err.message);
+    }
+    setUploadingAvatar(false);
+  };
+
+  const handleRemoveAvatar = async () => {
+    if (!window.confirm('Are you sure you want to remove this profile photo?')) return;
+    setUploadingAvatar(true);
+    try {
+      await api.removeAvatar(profileId);
+      await loadProfile();
+      if (user.id === profileId && refreshUser) {
+        await refreshUser();
+      }
+    } catch (err) {
+      alert(err.message);
+    }
+    setUploadingAvatar(false);
   };
 
   const handleSaveProfile = async () => {
@@ -130,9 +171,40 @@ export default function ProfilePage() {
   return (
     <div className="profile-layout">
       <div className="profile-sidebar">
-        <div className="profile-avatar">
-          {profile.first_name?.[0]}{profile.last_name?.[0]}
+        <div className="profile-avatar-container">
+          <div className="profile-avatar">
+            {profile.profile_picture ? (
+              <img src={profile.profile_picture} alt="Profile" className="profile-avatar-img" />
+            ) : (
+              <span>{profile.first_name?.[0]}{profile.last_name?.[0]}</span>
+            )}
+            {canEdit && (
+              <label className="profile-avatar-overlay" title="Upload Profile Picture">
+                <Camera size={14} />
+                <span>{uploadingAvatar ? '...' : 'Upload'}</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/jpg"
+                  style={{ display: 'none' }}
+                  disabled={uploadingAvatar}
+                  onChange={handleAvatarUpload}
+                />
+              </label>
+            )}
+          </div>
+          {canEdit && profile.profile_picture && (
+            <button
+              type="button"
+              className="remove-avatar-btn"
+              onClick={handleRemoveAvatar}
+              disabled={uploadingAvatar}
+              title="Remove profile photo"
+            >
+              Remove photo
+            </button>
+          )}
         </div>
+
         <div className="profile-name">{profile.first_name} {profile.last_name}</div>
         <div className="profile-designation">{profile.designation}</div>
         <span className={`badge ${profile.role === 'admin' ? 'badge-admin' : 'badge-employee'}`}>{profile.role}</span>

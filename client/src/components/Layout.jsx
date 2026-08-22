@@ -256,8 +256,12 @@ export default function Layout() {
 
           {/* User menu */}
           <div style={{ position: 'relative' }} ref={menuRef}>
-            <div className="user-avatar" onClick={() => setShowUserMenu(!showUserMenu)}>
-              {initials}
+            <div className="user-avatar" onClick={() => setShowUserMenu(!showUserMenu)} style={{ overflow: 'hidden', cursor: 'pointer' }}>
+              {user?.profile_picture ? (
+                <img src={user.profile_picture} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+              ) : (
+                initials
+              )}
             </div>
             {showUserMenu && (
               <div className="user-menu">

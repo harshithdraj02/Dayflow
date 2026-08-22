@@ -1,6 +1,39 @@
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 const db = require('../db/database');
 const { authMiddleware, adminOnly } = require('../middleware/auth');
+
+// Configure Multer for avatar uploads
+const avatarsDir = path.join(__dirname, '../uploads/avatars');
+if (!fs.existsSync(avatarsDir)) {
+  fs.mkdirSync(avatarsDir, { recursive: true });
+}
+
+const avatarStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, avatarsDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `avatar-${Date.now()}${ext}`);
+  }
+});
+
+const uploadAvatar = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (req, file, cb) => {
+    const allowed = ['.jpg', '.jpeg', '.png', '.webp'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowed.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only .jpg, .jpeg, .png and .webp image files are allowed'));
+    }
+  }
+});
 
 const router = express.Router();
 
@@ -111,6 +144,55 @@ router.put('/:id', authMiddleware, (req, res) => {
   } catch (err) {
     console.error('Update employee error:', err);
     res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// POST /api/employees/:id/avatar - Upload profile picture
+router.post('/:id/avatar', authMiddleware, (req, res) => {
+  uploadAvatar.single('avatar')(req, res, async function (err) {
+    if (err instanceof multer.MulterError) {
+      return res.status(400).json({ error: `Upload error: ${err.message}` });
+    } else if (err) {
+      return res.status(400).json({ error: err.message });
+    }
+
+    try {
+      const id = parseInt(req.params.id);
+      if (req.user.role !== 'admin' && req.user.id !== id) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: 'No image file uploaded' });
+      }
+
+      const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+      db.prepare('UPDATE users SET profile_picture = ? WHERE id = ?').run(avatarUrl, id);
+
+      res.json({
+        message: 'Profile picture updated successfully',
+        profile_picture: avatarUrl
+      });
+    } catch (err) {
+      console.error('Avatar upload error:', err);
+      res.status(500).json({ error: 'Failed to upload profile picture' });
+    }
+  });
+});
+
+// DELETE /api/employees/:id/avatar - Remove profile picture
+router.delete('/:id/avatar', authMiddleware, (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (req.user.role !== 'admin' && req.user.id !== id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    db.prepare('UPDATE users SET profile_picture = NULL WHERE id = ?').run(id);
+    res.json({ message: 'Profile picture removed successfully' });
+  } catch (err) {
+    console.error('Avatar delete error:', err);
+    res.status(500).json({ error: 'Failed to remove profile picture' });
   }
 });
 

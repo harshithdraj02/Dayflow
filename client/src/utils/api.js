@@ -2,7 +2,10 @@ const API_BASE = '/api';
 
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem('dayflow_token');
-  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  const headers = { ...options.headers };
+  if (!(options.body instanceof FormData) && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
@@ -31,6 +34,8 @@ export const api = {
   getEmployee: (id) => request(`/employees/${id}`),
   updateEmployee: (id, data) => request(`/employees/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteEmployee: (id) => request(`/employees/${id}`, { method: 'DELETE' }),
+  uploadAvatar: (id, formData) => request(`/employees/${id}/avatar`, { method: 'POST', body: formData }),
+  removeAvatar: (id) => request(`/employees/${id}/avatar`, { method: 'DELETE' }),
   addSkill: (id, data) => request(`/employees/${id}/skills`, { method: 'POST', body: JSON.stringify(data) }),
   deleteSkill: (id, skillId) => request(`/employees/${id}/skills/${skillId}`, { method: 'DELETE' }),
   addCertification: (id, data) => request(`/employees/${id}/certifications`, { method: 'POST', body: JSON.stringify(data) }),
