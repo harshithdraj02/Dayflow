@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff, Sparkles, Lock, Mail, ArrowRight } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
+import { Eye, EyeOff, Sparkles, Lock, Mail, ArrowRight, Sun, Moon } from 'lucide-react';
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const { theme, toggleTheme, isDark } = useTheme();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,6 +36,18 @@ export default function LoginPage() {
 
   return (
     <div className="auth-page">
+      {/* Top Floating Theme Toggle */}
+      <div style={{ position: 'fixed', top: 24, right: 28, zIndex: 50 }}>
+        <button 
+          className="theme-toggle-btn"
+          onClick={toggleTheme}
+          title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          aria-label="Toggle Theme"
+        >
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+      </div>
+
       <div className="auth-container">
         {/* Brand Header */}
         <div className="auth-logo">

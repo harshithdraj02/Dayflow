@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { Eye, EyeOff, Upload, Building, User, Mail, Phone, Lock, Sparkles, ArrowRight } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext';
+import { Eye, EyeOff, Upload, Building, User, Mail, Phone, Lock, Sparkles, ArrowRight, Sun, Moon } from 'lucide-react';
 
 export default function RegisterPage() {
   const { registerCompany } = useAuth();
+  const { theme, toggleTheme, isDark } = useTheme();
   const navigate = useNavigate();
 
   // State fields
@@ -81,6 +83,18 @@ export default function RegisterPage() {
 
   return (
     <div className="auth-page">
+      {/* Top Floating Theme Toggle */}
+      <div style={{ position: 'fixed', top: 24, right: 28, zIndex: 50 }}>
+        <button 
+          className="theme-toggle-btn"
+          onClick={toggleTheme}
+          title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          aria-label="Toggle Theme"
+        >
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+      </div>
+
       <div className="auth-container" style={{ maxWidth: '540px' }}>
         <div className="auth-logo">
           <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 52, height: 52, borderRadius: 'var(--radius)', background: 'var(--brand-gradient)', boxShadow: '0 0 24px -2px rgba(99, 102, 241, 0.6)', marginBottom: 14 }}>

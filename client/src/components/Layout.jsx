@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { api } from '../utils/api';
 import { 
   Users, 
@@ -15,11 +16,14 @@ import {
   Bell, 
   X,
   Sparkles,
-  Layers
+  Layers,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 export default function Layout() {
   const { user, logout, isAdmin } = useAuth();
+  const { theme, toggleTheme, isDark } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [todayStatus, setTodayStatus] = useState(null);
@@ -236,6 +240,16 @@ export default function Layout() {
               </div>
             )}
           </div>
+
+          {/* Theme Toggle Button (Light / Dark) */}
+          <button 
+            className="theme-toggle-btn"
+            onClick={toggleTheme}
+            title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+            aria-label="Toggle Theme"
+          >
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
 
           {/* Notification Slideout Drawer */}
           <div className="notification-bell-container" ref={notifRef} style={{ position: 'relative' }}>
