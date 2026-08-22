@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -70,9 +70,15 @@ export default function LoginPage() {
             </button>
           </form>
         </div>
-        <div className="auth-footer">
-          <p style={{ marginTop: 16, fontSize: 12, color: 'var(--text-muted)' }}>
-            Demo: priya.sharma@dayflow.com / Admin@123
+        <div className="auth-footer" style={{ textAlign: 'center', marginTop: 16 }}>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+            Don't have an account?{' '}
+            <Link to="/register" style={{ color: 'var(--primary)', fontWeight: 'bold' }}>
+              Register Company
+            </Link>
+          </p>
+          <p style={{ marginTop: 12, fontSize: 12, color: 'var(--text-muted)' }}>
+            Demo Admin: priya.sharma@dayflow.com / Admin@123
           </p>
         </div>
       </div>

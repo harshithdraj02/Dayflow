@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
-import { Pencil, X, Plus, Save, Mail, Phone, MapPin, Building, Briefcase, Calendar } from 'lucide-react';
+import { Pencil, X, Plus, Save, Mail, Phone, MapPin, Building, Briefcase, Calendar, Download } from 'lucide-react';
 
 export default function ProfilePage() {
   const { id } = useParams();
@@ -170,7 +170,7 @@ export default function ProfilePage() {
         <div className="profile-tabs">
           <button className={`profile-tab ${activeTab === 'private' ? 'active' : ''}`} onClick={() => setActiveTab('private')}>Private Info</button>
           <button className={`profile-tab ${activeTab === 'resume' ? 'active' : ''}`} onClick={() => setActiveTab('resume')}>Resume</button>
-          {isAdmin && <button className={`profile-tab ${activeTab === 'salary' ? 'active' : ''}`} onClick={() => setActiveTab('salary')}>Salary Info</button>}
+          {(isAdmin || user.id === profileId) && <button className={`profile-tab ${activeTab === 'salary' ? 'active' : ''}`} onClick={() => setActiveTab('salary')}>Salary Info</button>}
         </div>
 
         <div className="profile-tab-content">
@@ -326,9 +326,16 @@ export default function ProfilePage() {
             </div>
           )}
 
-          {activeTab === 'salary' && isAdmin && payroll && (
+          {activeTab === 'salary' && (isAdmin || user.id === profileId) && payroll && (
             <div>
-              <div className="salary-grid">
+              <div className="flex-between mb-16 no-print">
+                <h3 style={{ fontSize: 18 }}>Salary Details</h3>
+                <button className="btn btn-secondary btn-sm flex items-center gap-4" onClick={() => window.print()}>
+                  <Download size={14} /> Download Payslip
+                </button>
+              </div>
+
+              <div className="salary-grid no-print">
                 <div className="salary-card">
                   <div className="salary-label">Month Wage</div>
                   <div className="salary-value">{fmt(payroll.month_wage)} <span style={{ fontSize: 14, color: 'var(--text-secondary)' }}>/ Month</span></div>
@@ -340,7 +347,7 @@ export default function ProfilePage() {
               </div>
 
               {isAdmin && (
-                <div style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'end' }}>
+                <div className="no-print" style={{ display: 'flex', gap: 8, marginBottom: 20, alignItems: 'end' }}>
                   <div className="form-group" style={{ margin: 0, flex: 1 }}>
                     <label>Update Monthly Wage (₹)</label>
                     <input className="form-input" type="number" value={editWage} onChange={e => setEditWage(e.target.value)} />
@@ -351,51 +358,100 @@ export default function ProfilePage() {
                 </div>
               )}
 
-              <div className="salary-breakdown">
-                <div className="salary-breakdown-header">Salary Components</div>
-                <div className="salary-row">
-                  <span className="label">Basic Salary <span className="hint">(50% of Gross)</span></span>
-                  <span className="value">{fmt(payroll.basic_salary)}</span>
+              {/* Printable Corporate Payslip */}
+              <div id="payslip-to-print" className="payslip-document">
+                <div className="payslip-header-print">
+                  <div className="payslip-comp-name">{profile.company_name || 'DAYFLOW HRMS'}</div>
+                  <div className="payslip-title">SALARY PAYSLIP</div>
+                  <div className="payslip-period">For the Month of {new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' })}</div>
                 </div>
-                <div className="salary-row">
-                  <span className="label">House Rent Allowance (HRA) <span className="hint">(50% of Basic)</span></span>
-                  <span className="value">{fmt(payroll.hra)}</span>
-                </div>
-                <div className="salary-row">
-                  <span className="label">Standard Allowance <span className="hint">(16.67% of Basic)</span></span>
-                  <span className="value">{fmt(payroll.standard_allowance)}</span>
-                </div>
-                <div className="salary-row">
-                  <span className="label">Performance Bonus <span className="hint">(8.33% of Basic)</span></span>
-                  <span className="value">{fmt(payroll.performance_bonus)}</span>
-                </div>
-                <div className="salary-row">
-                  <span className="label">Leave Travel Allowance (LTA) <span className="hint">(8.33% of Basic)</span></span>
-                  <span className="value">{fmt(payroll.lta)}</span>
-                </div>
-                <div className="salary-row">
-                  <span className="label">Fixed Allowance <span className="hint">(Remainder)</span></span>
-                  <span className="value">{fmt(payroll.fixed_allowance)}</span>
-                </div>
-              </div>
 
-              <div className="salary-breakdown" style={{ marginTop: 16 }}>
-                <div className="salary-breakdown-header">Deductions</div>
-                <div className="salary-row deduction">
-                  <span className="label">PF – Employee Contribution <span className="hint">(12% of Basic)</span></span>
-                  <span className="value">-{fmt(payroll.pf_employee)}</span>
+                <div className="payslip-meta-grid">
+                  <div>
+                    <strong>Employee ID:</strong> <span>{profile.employee_id}</span>
+                  </div>
+                  <div>
+                    <strong>Employee Name:</strong> <span>{profile.first_name} {profile.last_name}</span>
+                  </div>
+                  <div>
+                    <strong>Department:</strong> <span>{profile.department}</span>
+                  </div>
+                  <div>
+                    <strong>Designation:</strong> <span>{profile.designation}</span>
+                  </div>
+                  <div>
+                    <strong>Location:</strong> <span>{profile.location}</span>
+                  </div>
+                  <div>
+                    <strong>PF Account:</strong> <span>PF-{profile.employee_id}</span>
+                  </div>
                 </div>
-                <div className="salary-row deduction">
-                  <span className="label">PF – Employer Contribution <span className="hint">(12% of Basic)</span></span>
-                  <span className="value">{fmt(payroll.pf_employer)}</span>
+
+                <div className="payslip-columns">
+                  <div className="salary-breakdown">
+                    <div className="salary-breakdown-header">Salary Earnings Components</div>
+                    <div className="salary-row">
+                      <span className="label">Basic Salary <span className="hint">(50% of Gross)</span></span>
+                      <span className="value">{fmt(payroll.basic_salary)}</span>
+                    </div>
+                    <div className="salary-row">
+                      <span className="label">House Rent Allowance (HRA) <span className="hint">(50% of Basic)</span></span>
+                      <span className="value">{fmt(payroll.hra)}</span>
+                    </div>
+                    <div className="salary-row">
+                      <span className="label">Standard Allowance <span className="hint">(16.67% of Basic)</span></span>
+                      <span className="value">{fmt(payroll.standard_allowance)}</span>
+                    </div>
+                    <div className="salary-row">
+                      <span className="label">Performance Bonus <span className="hint">(8.33% of Basic)</span></span>
+                      <span className="value">{fmt(payroll.performance_bonus)}</span>
+                    </div>
+                    <div className="salary-row">
+                      <span className="label">Leave Travel Allowance (LTA) <span className="hint">(8.33% of Basic)</span></span>
+                      <span className="value">{fmt(payroll.lta)}</span>
+                    </div>
+                    <div className="salary-row">
+                      <span className="label">Fixed Allowance <span className="hint">(Remainder)</span></span>
+                      <span className="value">{fmt(payroll.fixed_allowance)}</span>
+                    </div>
+                  </div>
+
+                  <div className="salary-breakdown">
+                    <div className="salary-breakdown-header">Salary Deductions</div>
+                    <div className="salary-row deduction">
+                      <span className="label">PF – Employee Contribution <span className="hint">(12% of Basic)</span></span>
+                      <span className="value">-{fmt(payroll.pf_employee)}</span>
+                    </div>
+                    <div className="salary-row deduction">
+                      <span className="label">PF – Employer Contribution <span className="hint">(12% of Basic)</span></span>
+                      <span className="value">{fmt(payroll.pf_employer)}</span>
+                    </div>
+                    <div className="salary-row deduction">
+                      <span className="label">Professional Tax</span>
+                      <span className="value">-{fmt(payroll.professional_tax)}</span>
+                    </div>
+                    {payroll.unpaid_days_this_month > 0 && (
+                      <div className="salary-row deduction" style={{ color: 'var(--accent-red)', fontWeight: 600 }}>
+                        <span className="label">Loss of Pay (LOP) Deduction <span className="hint">({payroll.unpaid_days_this_month} Unpaid Days Taken)</span></span>
+                        <span className="value">-{fmt(payroll.lop_deduction)}</span>
+                      </div>
+                    )}
+                    <div className="salary-row total">
+                      <span className="label">Net Salary Adjusted (Take Home)</span>
+                      <span className="value" style={{ color: 'var(--accent-green)' }}>{fmt(payroll.net_salary_adjusted)}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="salary-row deduction">
-                  <span className="label">Professional Tax</span>
-                  <span className="value">-{fmt(payroll.professional_tax)}</span>
-                </div>
-                <div className="salary-row total">
-                  <span className="label">Net Salary (Take Home)</span>
-                  <span className="value">{fmt(payroll.net_salary)}</span>
+
+                <div className="payslip-footer-print">
+                  <div className="payslip-sign-box">
+                    <div className="line"></div>
+                    <div>Employee Signature</div>
+                  </div>
+                  <div className="payslip-sign-box">
+                    <div className="line"></div>
+                    <div>Authorized HR Signatory</div>
+                  </div>
                 </div>
               </div>
             </div>

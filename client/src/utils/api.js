@@ -47,6 +47,8 @@ export const api = {
   getAllLeaves: (status) => request(`/leave/all${status ? `?status=${status}` : ''}`),
   approveLeave: (id, comment) => request(`/leave/${id}/approve`, { method: 'PUT', body: JSON.stringify({ comment }) }),
   rejectLeave: (id, comment) => request(`/leave/${id}/reject`, { method: 'PUT', body: JSON.stringify({ comment }) }),
+  getLeaveBalances: () => request('/leave/all-balances'),
+  updateLeaveBalance: (data) => request('/leave/update-balance', { method: 'PUT', body: JSON.stringify(data) }),
 
   // Payroll
   getMyPayroll: () => request('/payroll/my'),
@@ -60,4 +62,7 @@ export const api = {
   getDepartmentStats: () => request('/analytics/department-stats'),
   getLeaveDistribution: () => request('/analytics/leave-distribution'),
   getPayrollSummary: () => request('/analytics/payroll-summary'),
+  getNotifications: () => request('/notifications'),
+  markNotificationRead: (id) => request(`/notifications/${id}/read`, { method: 'PUT' }),
+  markAllNotificationsRead: () => request('/notifications/read-all', { method: 'PUT' }),
 };

@@ -1,15 +1,46 @@
 const express = require('express');
 const db = require('../db/database');
 const { authMiddleware, adminOnly } = require('../middleware/auth');
+const { createNotification } = require('./notifications');
 
 const router = express.Router();
+
+// Helper to calculate Loss-of-Pay (LOP) deductions for unpaid leaves
+function enrichPayroll(payroll, userId) {
+  const currentYear = new Date().getFullYear();
+  const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+  const monthPattern = `${currentYear}-${currentMonth}%`;
+  
+  const lopResult = db.prepare(`
+    SELECT SUM(days) as days FROM leave_requests
+    WHERE user_id = ? 
+      AND leave_type = 'unpaid' 
+      AND status = 'approved'
+      AND (start_date LIKE ? OR end_date LIKE ?)
+  `).get(userId, monthPattern, monthPattern);
+  
+  const unpaidDays = lopResult && lopResult.days ? lopResult.days : 0;
+  const dailyRate = payroll.month_wage / 30;
+  const penaltyMultiplier = 1.25;
+  const lopDeduction = Math.round(unpaidDays * dailyRate * penaltyMultiplier);
+  const netSalaryAdjusted = Math.max(0, payroll.net_salary - lopDeduction);
+  
+  return {
+    ...payroll,
+    unpaid_days_this_month: unpaidDays,
+    daily_rate: Math.round(dailyRate),
+    penalty_multiplier: penaltyMultiplier,
+    lop_deduction: lopDeduction,
+    net_salary_adjusted: netSalaryAdjusted
+  };
+}
 
 // GET /api/payroll/my - Employee's own payroll
 router.get('/my', authMiddleware, (req, res) => {
   try {
     const payroll = db.prepare('SELECT * FROM payroll WHERE user_id = ?').get(req.user.id);
     if (!payroll) return res.status(404).json({ error: 'Payroll data not found' });
-    res.json(payroll);
+    res.json(enrichPayroll(payroll, req.user.id));
   } catch (err) {
     res.status(500).json({ error: 'Failed to get payroll' });
   }
@@ -22,15 +53,18 @@ router.get('/all', authMiddleware, adminOnly, (req, res) => {
       SELECT p.*, u.first_name, u.last_name, u.employee_id, u.department, u.designation
       FROM payroll p
       JOIN users u ON p.user_id = u.id
+      WHERE u.company_id = ?
       ORDER BY u.first_name
-    `).all();
-    res.json(payrolls);
+    `).all(req.user.company_id);
+    
+    const enriched = payrolls.map(p => enrichPayroll(p, p.user_id));
+    res.json(enriched);
   } catch (err) {
     res.status(500).json({ error: 'Failed to get payroll data' });
   }
 });
 
-// GET /api/payroll/:userId - Admin: specific employee payroll
+// GET /api/payroll/:userId - Admin: specific employee payroll (or employee themselves)
 router.get('/:userId', authMiddleware, (req, res) => {
   try {
     const userId = parseInt(req.params.userId);
@@ -39,7 +73,7 @@ router.get('/:userId', authMiddleware, (req, res) => {
     }
     const payroll = db.prepare('SELECT * FROM payroll WHERE user_id = ?').get(userId);
     if (!payroll) return res.status(404).json({ error: 'Payroll data not found' });
-    res.json(payroll);
+    res.json(enrichPayroll(payroll, userId));
   } catch (err) {
     res.status(500).json({ error: 'Failed to get payroll' });
   }
@@ -81,6 +115,9 @@ router.put('/:userId', authMiddleware, adminOnly, (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(userId, wage, wage * 12, basic, hra, sa, pb, lta, fa, pfE, pfR, pt, net);
     }
+
+    // Notify employee of payroll updates
+    createNotification(userId, 'Salary Configured / Updated', `Your HR administrator updated your salary structure. Dynamic Gross Pay: ₹${wage.toLocaleString('en-IN')}`, 'info');
 
     res.json({ message: 'Salary updated successfully' });
   } catch (err) {

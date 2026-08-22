@@ -98,7 +98,7 @@ export default function PayrollPage() {
                 </td>
                 <td>{p.department}</td>
                 <td style={{ fontWeight: 600 }}>{fmt(p.month_wage)}</td>
-                <td style={{ fontWeight: 600, color: 'var(--accent-green)' }}>{fmt(p.net_salary)}</td>
+                <td style={{ fontWeight: 600, color: 'var(--accent-green)' }}>{fmt(p.net_salary_adjusted)}</td>
                 <td style={{ color: 'var(--text-secondary)' }}>{fmt(p.pf_employee)}</td>
                 <td style={{ color: 'var(--text-secondary)' }}>{fmt(p.professional_tax)}</td>
                 <td>

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
-import { Users, Clock, CalendarDays, User, LogOut, Settings, BarChart3, DollarSign, ChevronRight } from 'lucide-react';
+import { Users, Clock, CalendarDays, User, LogOut, Settings, BarChart3, DollarSign, ChevronRight, Bell, X } from 'lucide-react';
 
 export default function Layout() {
   const { user, logout, isAdmin } = useAuth();
@@ -12,21 +12,49 @@ export default function Layout() {
   const [showStatusPopover, setShowStatusPopover] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifDrawer, setShowNotifDrawer] = useState(false);
   const statusRef = useRef(null);
   const menuRef = useRef(null);
+  const notifRef = useRef(null);
 
   useEffect(() => {
     loadTodayStatus();
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 20000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
     function handleClickOutside(e) {
       if (statusRef.current && !statusRef.current.contains(e.target)) setShowStatusPopover(false);
       if (menuRef.current && !menuRef.current.contains(e.target)) setShowUserMenu(false);
+      if (notifRef.current && !notifRef.current.contains(e.target)) setShowNotifDrawer(false);
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const loadNotifications = async () => {
+    try {
+      const data = await api.getNotifications();
+      setNotifications(data);
+    } catch { /* ignore */ }
+  };
+
+  const handleMarkAsRead = async (id) => {
+    try {
+      await api.markNotificationRead(id);
+      loadNotifications();
+    } catch (err) { console.error(err); }
+  };
+
+  const handleMarkAllRead = async () => {
+    try {
+      await api.markAllNotificationsRead();
+      loadNotifications();
+    } catch (err) { console.error(err); }
+  };
 
   const loadTodayStatus = async () => {
     try {
@@ -70,8 +98,41 @@ export default function Layout() {
     <div className="app-layout">
       <header className="app-header">
         <div className="header-left">
-          <NavLink to="/" className="header-brand">
-            <h1>Dayflow</h1>
+          <NavLink to="/" className="header-brand" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {user?.company_logo ? (
+              <img 
+                src={user.company_logo} 
+                alt={user.company_name || 'Logo'} 
+                className="company-logo-img" 
+                style={{ 
+                  height: 32, 
+                  width: 'auto', 
+                  maxWidth: 120, 
+                  objectFit: 'contain', 
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'rgba(255, 255, 255, 0.05)',
+                  padding: '2px 6px'
+                }} 
+              />
+            ) : (
+              <h1>Dayflow</h1>
+            )}
+            {user?.company_name && (
+              <span 
+                className="company-logo-name" 
+                style={{ 
+                  fontSize: 14, 
+                  fontWeight: 600, 
+                  color: 'var(--text-secondary)',
+                  opacity: 0.8,
+                  borderLeft: '1px solid var(--border-color)',
+                  paddingLeft: 10,
+                  display: 'inline-block'
+                }}
+              >
+                {user.company_name}
+              </span>
+            )}
           </NavLink>
           <nav className="header-nav">
             <NavLink to="/" end className={({ isActive }) => `header-nav-item ${isActive || location.pathname === '/employees' ? 'active' : ''}`}>
@@ -132,6 +193,63 @@ export default function Layout() {
                     </button>
                   </>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* Notification Bell */}
+          <div className="notification-bell-container" ref={notifRef} style={{ position: 'relative' }}>
+            <button 
+              className={`btn-notification ${notifications.some(n => !n.is_read) ? 'has-unread' : ''}`}
+              onClick={() => setShowNotifDrawer(!showNotifDrawer)}
+              title="Notifications"
+            >
+              <Bell size={20} />
+              {notifications.some(n => !n.is_read) && (
+                <span className="notification-badge" />
+              )}
+            </button>
+
+            {/* Slideout Drawer Panel */}
+            {showNotifDrawer && (
+              <div className="notification-slideout">
+                <div className="notif-header">
+                  <h3>Notifications</h3>
+                  {notifications.some(n => !n.is_read) && (
+                    <button className="btn-mark-all" onClick={handleMarkAllRead}>
+                      Mark all read
+                    </button>
+                  )}
+                  <button className="btn-close-notif" onClick={() => setShowNotifDrawer(false)}>
+                    <X size={16} />
+                  </button>
+                </div>
+
+                <div className="notif-list">
+                  {notifications.length === 0 ? (
+                    <div className="notif-empty">
+                      <Bell size={24} style={{ opacity: 0.3, marginBottom: 8 }} />
+                      <p>You're all caught up!</p>
+                    </div>
+                  ) : (
+                    notifications.map((n) => (
+                      <div 
+                        key={n.id} 
+                        className={`notif-item ${n.is_read ? 'read' : 'unread'} notif-type-${n.type || 'general'}`}
+                        onClick={() => !n.is_read && handleMarkAsRead(n.id)}
+                      >
+                        <div className="notif-item-header">
+                          <span className="notif-title">{n.title}</span>
+                          {!n.is_read && <span className="notif-unread-dot" />}
+                        </div>
+                        <p className="notif-message">{n.message}</p>
+                        <span className="notif-time">
+                          {new Date(n.created_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             )}
           </div>

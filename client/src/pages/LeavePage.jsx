@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
-import { Plus, Check, X, Calendar, Clock } from 'lucide-react';
+import { Plus, Check, X, Calendar, Clock, Upload, Paperclip } from 'lucide-react';
 
 export default function LeavePage() {
   const { user, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState(isAdmin ? 'requests' : 'my');
   const [leaveData, setLeaveData] = useState(null);
   const [allLeaves, setAllLeaves] = useState([]);
+  const [allBalances, setAllBalances] = useState([]);
+  const [selectedBalance, setSelectedBalance] = useState(null);
   const [filterStatus, setFilterStatus] = useState('');
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -26,8 +28,22 @@ export default function LeavePage() {
         const data = await api.getAllLeaves(filterStatus);
         setAllLeaves(data);
       }
+      if (activeTab === 'allocation' && isAdmin) {
+        const data = await api.getLeaveBalances();
+        setAllBalances(data);
+      }
     } catch (err) { console.error(err); }
     setLoading(false);
+  };
+
+  const handleUpdateBalance = async (userId, paidTotal, sickTotal) => {
+    try {
+      await api.updateLeaveBalance({ user_id: userId, paid_total: paidTotal, sick_total: sickTotal });
+      await loadData();
+      setSelectedBalance(null);
+    } catch (err) {
+      alert(err.message);
+    }
   };
 
   const handleApprove = async (id) => {
@@ -72,6 +88,7 @@ export default function LeavePage() {
       {isAdmin && (
         <div className="tabs">
           <button className={`tab ${activeTab === 'requests' ? 'active' : ''}`} onClick={() => setActiveTab('requests')}>Time Off</button>
+          <button className={`tab ${activeTab === 'allocation' ? 'active' : ''}`} onClick={() => setActiveTab('allocation')}>Leave Allocation</button>
           <button className={`tab ${activeTab === 'my' ? 'active' : ''}`} onClick={() => setActiveTab('my')}>My Leaves</button>
         </div>
       )}
@@ -128,6 +145,7 @@ export default function LeavePage() {
                     <th>End Date</th>
                     <th>Days</th>
                     <th>Reason</th>
+                    <th>Attachment</th>
                     <th>Status</th>
                     <th>Comment</th>
                   </tr>
@@ -140,6 +158,13 @@ export default function LeavePage() {
                       <td>{new Date(r.end_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</td>
                       <td>{r.days}</td>
                       <td style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.reason || '—'}</td>
+                      <td>
+                        {r.attachment ? (
+                          <a href={r.attachment} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--primary)', fontSize: 12, fontWeight: 500 }}>
+                            <Paperclip size={12} /> View
+                          </a>
+                        ) : '—'}
+                      </td>
                       <td>{getStatusBadge(r.status)}</td>
                       <td style={{ color: 'var(--text-secondary)', fontSize: 13 }}>{r.admin_comment || '—'}</td>
                     </tr>
@@ -186,6 +211,7 @@ export default function LeavePage() {
                   <th>Type</th>
                   <th>Days</th>
                   <th>Reason</th>
+                  <th>Attachment</th>
                   <th>Status</th>
                   <th>Actions</th>
                 </tr>
@@ -211,6 +237,13 @@ export default function LeavePage() {
                     <td>{getLeaveTypeBadge(r.leave_type)}</td>
                     <td>{r.days}</td>
                     <td style={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.reason || '—'}</td>
+                    <td>
+                      {r.attachment ? (
+                        <a href={r.attachment} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <Paperclip size={12} /> View
+                        </a>
+                      ) : '—'}
+                    </td>
                     <td>{getStatusBadge(r.status)}</td>
                     <td>
                       {r.status === 'pending' ? (
@@ -244,7 +277,145 @@ export default function LeavePage() {
         </div>
       )}
 
+      {activeTab === 'allocation' && isAdmin && (
+        <div className="data-table-wrapper">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th>Department</th>
+                <th>Paid Leaves (Available / Total)</th>
+                <th>Sick Leaves (Available / Total)</th>
+                <th>Unpaid Leaves Taken</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {allBalances.map((b) => (
+                <tr key={b.id}>
+                  <td style={{ fontWeight: 500 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div className="emp-mini-avatar" style={{
+                        width: 32, height: 32, borderRadius: '50%', fontSize: 11,
+                        background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700,
+                        flexShrink: 0
+                      }}>
+                        {b.first_name?.[0]}{b.last_name?.[0]}
+                      </div>
+                      <div>
+                        <div>{b.first_name} {b.last_name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 400 }}>{b.designation}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>{b.department}</td>
+                  <td>
+                    <span style={{ fontWeight: 600, color: 'var(--primary)' }}>{b.paid_total - b.paid_used}</span>
+                    <span style={{ color: 'var(--text-secondary)' }}> / {b.paid_total} days</span>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>({b.paid_used} used)</div>
+                  </td>
+                  <td>
+                    <span style={{ fontWeight: 600, color: 'var(--accent-red)' }}>{b.sick_total - b.sick_used}</span>
+                    <span style={{ color: 'var(--text-secondary)' }}> / {b.sick_total} days</span>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>({b.sick_used} used)</div>
+                  </td>
+                  <td>
+                    <span style={{ fontWeight: 600, color: 'var(--accent-yellow)' }}>{b.unpaid_used}</span>
+                    <span style={{ color: 'var(--text-secondary)' }}> days</span>
+                  </td>
+                  <td>
+                    <button className="btn btn-secondary btn-sm" onClick={() => setSelectedBalance(b)}>
+                      Edit Allocation
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              {allBalances.length === 0 && (
+                <tr><td colSpan="6" style={{ textAlign: 'center', padding: 32, color: 'var(--text-muted)' }}>No employee balances found</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
       {showApplyModal && <ApplyLeaveModal onClose={() => setShowApplyModal(false)} onApplied={loadData} userName={`${user.first_name} ${user.last_name}`} />}
+
+      {selectedBalance && (
+        <EditBalanceModal 
+          balance={selectedBalance} 
+          onClose={() => setSelectedBalance(null)} 
+          onSave={handleUpdateBalance} 
+        />
+      )}
+    </div>
+  );
+}
+
+function EditBalanceModal({ balance, onClose, onSave }) {
+  const [paidTotal, setPaidTotal] = useState(balance.paid_total);
+  const [sickTotal, setSickTotal] = useState(balance.sick_total);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await onSave(balance.user_id, paidTotal, sickTotal);
+    } catch (err) {
+      setError(err.message);
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="modal" style={{ maxWidth: 400 }}>
+        <h2>Adjust Leave Allocation</h2>
+        <p style={{ color: 'var(--text-secondary)', fontSize: 13, marginBottom: 16 }}>
+          Updating leave allocation policy for <strong>{balance.first_name} {balance.last_name}</strong>.
+        </p>
+        
+        {error && <div className="error-msg">{error}</div>}
+
+        <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label>Paid Leaves Total (Per Year)</label>
+            <input 
+              type="number" 
+              className="form-input" 
+              value={paidTotal} 
+              onChange={e => setPaidTotal(parseInt(e.target.value) || 0)} 
+              min={balance.paid_used}
+            />
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+              Must be at least {balance.paid_used} (already used)
+            </span>
+          </div>
+
+          <div className="form-group">
+            <label>Sick Leaves Total (Per Year)</label>
+            <input 
+              type="number" 
+              className="form-input" 
+              value={sickTotal} 
+              onChange={e => setSickTotal(parseInt(e.target.value) || 0)} 
+              min={balance.sick_used}
+            />
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+              Must be at least {balance.sick_used} (already used)
+            </span>
+          </div>
+
+          <div className="modal-actions" style={{ marginTop: 24 }}>
+            <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? 'Updating...' : 'Save Allocation'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -256,6 +427,7 @@ function ApplyLeaveModal({ onClose, onApplied, userName }) {
     end_date: '',
     reason: '',
   });
+  const [attachmentFile, setAttachmentFile] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [days, setDays] = useState(0);
@@ -274,14 +446,59 @@ function ApplyLeaveModal({ onClose, onApplied, userName }) {
     }
   }, [form.start_date, form.end_date]);
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Attachment size must be less than 5MB');
+        return;
+      }
+      const allowed = ['.jpg', '.jpeg', '.png', '.pdf'];
+      const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+      if (!allowed.includes(ext)) {
+        setError('Only .jpg, .jpeg, .png, and .pdf files are allowed');
+        return;
+      }
+      setAttachmentFile(file);
+      setError('');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.start_date || !form.end_date) { setError('Please select dates'); return; }
     if (days <= 0) { setError('Invalid date range'); return; }
+    if (form.leave_type === 'sick' && !attachmentFile) {
+      setError('Medical certificate upload is required for sick leave requests.');
+      return;
+    }
     setError('');
     setLoading(true);
+
     try {
-      await api.applyLeave(form);
+      const formData = new FormData();
+      formData.append('leave_type', form.leave_type);
+      formData.append('start_date', form.start_date);
+      formData.append('end_date', form.end_date);
+      formData.append('reason', form.reason);
+      if (attachmentFile) {
+        formData.append('attachment', attachmentFile);
+      }
+
+      const token = localStorage.getItem('dayflow_token');
+      const headers = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const response = await fetch('/api/leave/apply', {
+        method: 'POST',
+        headers,
+        body: formData
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit leave request');
+      }
+
       onApplied();
       onClose();
     } catch (err) {
@@ -328,12 +545,82 @@ function ApplyLeaveModal({ onClose, onApplied, userName }) {
             <label>Reason / Description</label>
             <textarea className="form-textarea" value={form.reason} onChange={e => setForm({...form, reason: e.target.value})} placeholder="Reason for time off..." />
           </div>
-          {form.leave_type === 'sick' && (
-            <div style={{ background: 'rgba(255, 107, 107, 0.1)', padding: 12, borderRadius: 'var(--radius-sm)', marginBottom: 16, fontSize: 13, color: 'var(--accent-red)' }}>
-              📎 Note: Sick leave may require a medical certificate attachment.
+
+          {form.leave_type === 'sick' ? (
+            <div className="form-group">
+              <label className="required-label">Medical Certificate (PDF or Image)</label>
+              <div className="logo-upload-box" style={{ padding: '16px', border: '1px dashed var(--accent-red)', background: 'rgba(255, 107, 107, 0.05)' }}>
+                {attachmentFile ? (
+                  <div className="logo-preview-container" style={{ margin: 0, justifyContent: 'space-between', width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, overflow: 'hidden' }}>
+                      <Upload size={16} style={{ color: 'var(--accent-red)' }} />
+                      <span style={{ fontSize: 13, color: 'var(--text-primary)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                        {attachmentFile.name} ({(attachmentFile.size / 1024).toFixed(1)} KB)
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        setAttachmentFile(null);
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <label className="logo-placeholder-label" style={{ cursor: 'pointer', margin: 0 }}>
+                    <Upload size={20} className="upload-icon" style={{ color: 'var(--accent-red)', marginBottom: 6 }} />
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Click to upload file (PDF, JPG, PNG - max 5MB)</span>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      style={{ display: 'none' }}
+                      onChange={handleFileChange}
+                    />
+                  </label>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="form-group">
+              <label>Supporting Documents (Optional)</label>
+              <div className="logo-upload-box" style={{ padding: '16px' }}>
+                {attachmentFile ? (
+                  <div className="logo-preview-container" style={{ margin: 0, justifyContent: 'space-between', width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, overflow: 'hidden' }}>
+                      <Upload size={16} style={{ color: 'var(--primary)' }} />
+                      <span style={{ fontSize: 13, color: 'var(--text-primary)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                        {attachmentFile.name} ({(attachmentFile.size / 1024).toFixed(1)} KB)
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => {
+                        setAttachmentFile(null);
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <label className="logo-placeholder-label" style={{ cursor: 'pointer', margin: 0 }}>
+                    <Upload size={20} className="upload-icon" style={{ marginBottom: 6 }} />
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Upload attachment (optional)</span>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png"
+                      style={{ display: 'none' }}
+                      onChange={handleFileChange}
+                    />
+                  </label>
+                )}
+              </div>
             </div>
           )}
-          <div className="modal-actions">
+
+          <div className="modal-actions" style={{ marginTop: 20 }}>
             <button type="button" className="btn btn-secondary" onClick={onClose}>Discard</button>
             <button type="submit" className="btn btn-primary" disabled={loading}>
               {loading ? 'Submitting...' : 'Submit'}

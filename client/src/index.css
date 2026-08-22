@@ -1285,3 +1285,480 @@ html, body, #root {
 .mt-24 { margin-top: 24px; }
 .mb-16 { margin-bottom: 16px; }
 .mb-24 { margin-bottom: 24px; }
+
+/* ============ LOGO UPLOAD & REGISTRATION STYLING ============ */
+.logo-upload-box {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1.5px dashed rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  text-align: center;
+  transition: var(--transition);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 70px;
+  box-sizing: border-box;
+}
+
+.logo-upload-box:hover {
+  border-color: var(--primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.logo-placeholder-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  width: 100%;
+  color: var(--text-secondary);
+  font-size: 13px;
+  transition: color var(--transition);
+}
+
+.logo-placeholder-label:hover {
+  color: var(--text-primary);
+}
+
+.logo-placeholder-label .upload-icon {
+  color: var(--primary);
+  opacity: 0.8;
+}
+
+.logo-preview-container {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  justify-content: space-between;
+  padding: 2px 4px;
+}
+
+.logo-upload-preview {
+  max-width: 120px;
+  max-height: 52px;
+  object-fit: contain;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.required-label::after {
+  content: " *";
+  color: var(--accent-red);
+}
+
+.input-field-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.form-input-with-icon .form-input {
+  padding-left: 40px !important;
+}
+
+/* ============ PAYSLIP & PRINT LAYOUTS ============ */
+.payslip-document {
+  background: #ffffff;
+  color: #1e1e2d;
+  padding: 40px;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  margin-top: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  font-family: 'Inter', -apple-system, sans-serif;
+}
+
+.payslip-header-print {
+  text-align: center;
+  border-bottom: 2px solid #e1e1e9;
+  padding-bottom: 24px;
+  margin-bottom: 24px;
+}
+
+.payslip-comp-name {
+  font-size: 24px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #3b3b58;
+}
+
+.payslip-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 6px 0;
+  letter-spacing: 2px;
+  color: #7c6aff;
+}
+
+.payslip-period {
+  font-size: 13px;
+  color: #7a7a95;
+  font-weight: 500;
+}
+
+.payslip-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr) !important;
+  gap: 16px;
+  background: #f8f8fc;
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 30px;
+  font-size: 13px;
+}
+
+.payslip-meta-grid div {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px dashed #e1e1e9;
+  padding-bottom: 6px;
+}
+
+.payslip-meta-grid strong {
+  color: #7a7a95;
+  font-weight: 600;
+}
+
+.payslip-meta-grid span {
+  font-weight: 700;
+  color: #1e1e2d;
+}
+
+.payslip-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-bottom: 40px;
+}
+
+.payslip-columns .salary-breakdown {
+  background: #ffffff;
+  border: 1px solid #e1e1e9;
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: none;
+  margin: 0;
+}
+
+.payslip-columns .salary-breakdown-header {
+  font-size: 14px;
+  font-weight: 700;
+  color: #3b3b58;
+  border-bottom: 2px solid #e1e1e9;
+  padding-bottom: 10px;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.payslip-columns .salary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f1f5;
+  font-size: 13px;
+}
+
+.payslip-columns .salary-row .label {
+  color: #55556d;
+}
+
+.payslip-columns .salary-row .value {
+  font-weight: 600;
+  color: #1e1e2d;
+}
+
+.payslip-columns .salary-row.deduction .value {
+  color: #ea580c;
+}
+
+.payslip-columns .salary-row.total {
+  border-top: 2px solid #3b3b58;
+  border-bottom: none;
+  font-weight: 800;
+  padding-top: 14px;
+}
+
+.payslip-columns .salary-row.total .value {
+  font-size: 16px;
+  color: #16a34a !important;
+}
+
+.payslip-footer-print {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 60px;
+  padding-top: 20px;
+}
+
+.payslip-sign-box {
+  width: 220px;
+  text-align: center;
+  font-size: 12px;
+  color: #7a7a95;
+  font-weight: 600;
+}
+
+.payslip-sign-box .line {
+  border-top: 1px solid #7a7a95;
+  margin-bottom: 8px;
+}
+
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+  
+  #payslip-to-print, #payslip-to-print * {
+    visibility: visible !important;
+  }
+  
+  #payslip-to-print {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .payslip-meta-grid {
+    background: #f1f1f5 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  .payslip-columns {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 20px !important;
+  }
+}
+
+/* ============ NOTIFICATION DRAWER SYMBOLS ============ */
+.btn-notification {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  position: relative;
+  margin-right: 8px;
+}
+
+.btn-notification:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.btn-notification.has-unread {
+  color: var(--primary);
+}
+
+.notification-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  background-color: var(--accent-red);
+  border-radius: 50%;
+  border: 1.5px solid var(--bg-card);
+}
+
+.notification-slideout {
+  position: absolute;
+  top: 50px;
+  right: 0;
+  width: 320px;
+  max-height: 480px;
+  background: rgba(24, 24, 37, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: slideInNotif 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes slideInNotif {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.notif-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(15, 15, 23, 0.4);
+}
+
+.notif-header h3 {
+  font-size: 14px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.btn-mark-all {
+  background: transparent;
+  border: none;
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px;
+  transition: opacity 0.2s;
+}
+
+.btn-mark-all:hover {
+  text-decoration: underline;
+}
+
+.btn-close-notif {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.btn-close-notif:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.notif-list {
+  overflow-y: auto;
+  max-height: 420px;
+  flex: 1;
+}
+
+.notif-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.notif-empty p {
+  font-size: 13px;
+  margin: 0;
+}
+
+.notif-item {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.15s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+
+.notif-item:hover {
+  background: var(--bg-hover);
+}
+
+.notif-item.unread {
+  background: rgba(124, 106, 255, 0.03);
+}
+
+.notif-item.unread:hover {
+  background: rgba(124, 106, 255, 0.06);
+}
+
+.notif-item-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.notif-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.notif-unread-dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--primary);
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 5px;
+}
+
+.notif-message {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.notif-time {
+  font-size: 10px;
+  color: var(--text-muted);
+  align-self: flex-end;
+}
+
+.notif-type-success {
+  border-left: 3px solid var(--primary);
+}
+
+.notif-type-warning {
+  border-left: 3px solid var(--accent-yellow);
+}
+
+.notif-type-danger {
+  border-left: 3px solid var(--accent-red);
+}
+
+.notif-type-info {
+  border-left: 3px solid var(--secondary);
+}
+
+.notif-type-general {
+  border-left: 3px solid var(--border);
+}

@@ -15,8 +15,9 @@ router.get('/', authMiddleware, (req, res) => {
                a.status as today_status, a.check_in as today_check_in, a.check_out as today_check_out
         FROM users u
         LEFT JOIN attendance a ON u.id = a.user_id AND a.date = date('now')
+        WHERE u.company_id = ?
         ORDER BY u.first_name
-      `).all();
+      `).all(req.user.company_id);
       
       // Check if any employee has approved leave today
       const onLeave = db.prepare(`

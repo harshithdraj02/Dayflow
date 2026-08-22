@@ -3,8 +3,34 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const db = require('../db/database');
 const { JWT_SECRET, authMiddleware, adminOnly } = require('../middleware/auth');
+const fs = require('fs');
+const path = require('path');
+const multer = require('multer');
 
 const router = express.Router();
+
+// Ensure uploads directories exist programmatically
+const uploadDir = path.join(__dirname, '../uploads');
+const logosDir = path.join(uploadDir, 'logos');
+const leavesDir = path.join(uploadDir, 'leaves');
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+if (!fs.existsSync(logosDir)) fs.mkdirSync(logosDir, { recursive: true });
+if (!fs.existsSync(leavesDir)) fs.mkdirSync(leavesDir, { recursive: true });
+
+// Config Multer for company logos
+const logoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, logosDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `logo-${Date.now()}${ext}`);
+  }
+});
+const uploadLogo = multer({
+  storage: logoStorage,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
 // Helper: generate employee ID
 function generateEmployeeId(firstName, lastName) {
@@ -42,13 +68,14 @@ router.post('/signup', authMiddleware, adminOnly, async (req, res) => {
 
     const stmt = db.prepare(`
       INSERT INTO users (employee_id, email, password, role, first_name, last_name, phone, department, designation, company_id, location, join_date)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 'Head Office', ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Head Office', ?)
     `);
 
     const result = stmt.run(
       employee_id, email, hashedPassword, role || 'employee',
       first_name, last_name, phone || '',
       department || 'General', designation || 'Employee',
+      req.user.company_id,
       new Date().toISOString().split('T')[0]
     );
 
@@ -93,14 +120,20 @@ router.post('/login', async (req, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
 
-    const user = db.prepare('SELECT * FROM users WHERE email = ? OR employee_id = ?').get(email, email);
+    const user = db.prepare(`
+      SELECT u.*, c.name as company_name, c.logo as company_logo
+      FROM users u
+      LEFT JOIN companies c ON u.company_id = c.id
+      WHERE u.email = ? OR u.employee_id = ?
+    `).get(email, email);
+
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) return res.status(401).json({ error: 'Invalid credentials' });
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role, employee_id: user.employee_id },
+      { id: user.id, email: user.email, role: user.role, employee_id: user.employee_id, company_id: user.company_id },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
@@ -116,7 +149,13 @@ router.post('/login', async (req, res) => {
 
 // GET /api/auth/me - Get current user
 router.get('/me', authMiddleware, (req, res) => {
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  const user = db.prepare(`
+    SELECT u.*, c.name as company_name, c.logo as company_logo
+    FROM users u
+    LEFT JOIN companies c ON u.company_id = c.id
+    WHERE u.id = ?
+  `).get(req.user.id);
+
   if (!user) return res.status(404).json({ error: 'User not found' });
   const { password, ...userWithoutPassword } = user;
   res.json(userWithoutPassword);
@@ -138,6 +177,103 @@ router.put('/change-password', authMiddleware, async (req, res) => {
     res.json({ message: 'Password changed successfully' });
   } catch (err) {
     res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+// POST /api/auth/register-company - Registers a new company with an admin user
+router.post('/register-company', uploadLogo.single('logo'), async (req, res) => {
+  try {
+    const { company_name, admin_first_name, admin_last_name, email, password, phone } = req.body;
+
+    if (!company_name || !admin_first_name || !admin_last_name || !email || !password) {
+      return res.status(400).json({ error: 'All fields (Company Name, First Name, Last Name, Email, Password) are required' });
+    }
+
+    // Check if email already registered
+    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
+    if (existing) {
+      return res.status(400).json({ error: 'Email is already registered. Please go to Log In.' });
+    }
+
+    // Store Company logo suffix/path
+    let logoUrl = null;
+    if (req.file) {
+      logoUrl = `/uploads/logos/${req.file.filename}`;
+    }
+
+    // 1. Insert Company
+    const compStmt = db.prepare('INSERT INTO companies (name, logo) VALUES (?, ?)');
+    const compResult = compStmt.run(company_name, logoUrl);
+    const companyId = compResult.lastInsertRowid;
+
+    // 2. Generate Admin Employee ID
+    const employee_id = generateEmployeeId(admin_first_name, admin_last_name);
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // 3. Insert Admin User
+    const userStmt = db.prepare(`
+      INSERT INTO users (employee_id, email, password, role, first_name, last_name, phone, company_id, location, join_date)
+      VALUES (?, ?, ?, 'admin', ?, ?, ?, ?, 'Head Office', ?)
+    `);
+    const userResult = userStmt.run(
+      employee_id,
+      email,
+      hashedPassword,
+      admin_first_name,
+      admin_last_name,
+      phone || '',
+      companyId,
+      new Date().toISOString().split('T')[0]
+    );
+    const userId = userResult.lastInsertRowid;
+
+    // 4. Create initial Leave Balance for the admin
+    const currentYear = new Date().getFullYear();
+    db.prepare('INSERT INTO leave_balance (user_id, year, paid_total, sick_total) VALUES (?, ?, 24, 7)')
+      .run(userId, currentYear);
+
+    // 5. Create default Admin Payroll component
+    const defaultWage = 120000; // default admin salary component
+    const basic = defaultWage * 0.50;
+    const hra = basic * 0.50;
+    const sa = basic * 0.1667;
+    const pb = basic * 0.0833;
+    const lta = basic * 0.0833;
+    const fa = defaultWage - (basic + hra + sa + pb + lta);
+    const pfE = basic * 0.12;
+    const pfR = basic * 0.12;
+    const pt = 200;
+    const net = defaultWage - pfE - pt;
+
+    db.prepare(`
+      INSERT INTO payroll (user_id, month_wage, yearly_wage, basic_salary, hra, standard_allowance, performance_bonus, lta, fixed_allowance, pf_employee, pf_employer, professional_tax, net_salary)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(userId, defaultWage, defaultWage * 12, basic, hra, sa, pb, lta, fa, pfE, pfR, pt, net);
+
+    // 6. Generate JWT Token
+    const token = jwt.sign(
+      { id: userId, email: email, role: 'admin', employee_id: employee_id, company_id: companyId },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    const user = db.prepare(`
+      SELECT u.*, c.name as company_name, c.logo as company_logo
+      FROM users u
+      LEFT JOIN companies c ON u.company_id = c.id
+      WHERE u.id = ?
+    `).get(userId);
+    const { password: _, ...userWithoutPassword } = user;
+
+    res.status(201).json({
+      message: 'Company and Admin registered successfully',
+      token,
+      user: userWithoutPassword
+    });
+
+  } catch (err) {
+    console.error('Company registration error:', err);
+    res.status(500).json({ error: 'Failed to register company' });
   }
 });
 
