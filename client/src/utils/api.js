@@ -28,6 +28,7 @@ export const api = {
   signup: (data) => request('/auth/signup', { method: 'POST', body: JSON.stringify(data) }),
   getMe: () => request('/auth/me'),
   changePassword: (data) => request('/auth/change-password', { method: 'PUT', body: JSON.stringify(data) }),
+  uploadCompanyLogo: (formData) => request('/auth/company-logo', { method: 'POST', body: formData }),
 
   // Employees
   getEmployees: () => request('/employees'),

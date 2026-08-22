@@ -277,4 +277,27 @@ router.post('/register-company', uploadLogo.single('logo'), async (req, res) => 
   }
 });
 
+// POST /api/auth/company-logo - Admin updates organization logo
+router.post('/company-logo', authMiddleware, adminOnly, uploadLogo.single('logo'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No logo file provided' });
+    }
+
+    const logoUrl = `/uploads/logos/${req.file.filename}`;
+    db.prepare('UPDATE companies SET logo = ? WHERE id = ?').run(logoUrl, req.user.company_id);
+
+    const company = db.prepare('SELECT * FROM companies WHERE id = ?').get(req.user.company_id);
+
+    res.json({
+      message: 'Company logo updated successfully',
+      logo: logoUrl,
+      company
+    });
+  } catch (err) {
+    console.error('Error updating company logo:', err);
+    res.status(500).json({ error: 'Failed to update company logo' });
+  }
+});
+
 module.exports = router;

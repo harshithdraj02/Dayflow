@@ -434,23 +434,31 @@ body {
 }
 
 .brand-company-badge {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-glass);
   border: 1px solid var(--border);
-  padding: 4px 10px;
+  padding: 4px 12px;
   border-radius: var(--radius-full);
   display: flex;
   align-items: center;
   gap: 8px;
+  transition: var(--transition);
+}
+
+.brand-company-badge:hover {
+  border-color: var(--primary-light);
+  color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 .brand-company-logo-img {
-  height: 18px;
-  max-width: 60px;
-  object-fit: contain;
-  border-radius: 2px;
+  height: 20px;
+  width: 20px;
+  border-radius: 4px;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .header-nav {

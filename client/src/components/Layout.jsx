@@ -18,11 +18,13 @@ import {
   Sparkles,
   Layers,
   Sun,
-  Moon
+  Moon,
+  Camera,
+  Building
 } from 'lucide-react';
 
 export default function Layout() {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, refreshUser } = useAuth();
   const { theme, toggleTheme, isDark } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -32,9 +34,12 @@ export default function Layout() {
   const [checkingIn, setCheckingIn] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [showNotifDrawer, setShowNotifDrawer] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  
   const statusRef = useRef(null);
   const menuRef = useRef(null);
   const notifRef = useRef(null);
+  const logoInputRef = useRef(null);
 
   useEffect(() => {
     loadTodayStatus();
@@ -108,6 +113,28 @@ export default function Layout() {
     navigate('/login');
   };
 
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Logo file size must be less than 5MB');
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('logo', file);
+
+    setUploadingLogo(true);
+    try {
+      await api.uploadCompanyLogo(formData);
+      if (refreshUser) await refreshUser();
+    } catch (err) {
+      alert(err.message);
+    }
+    setUploadingLogo(false);
+  };
+
   const isCheckedIn = todayStatus?.check_in && !todayStatus?.check_out;
   const isCheckedOut = todayStatus?.check_in && todayStatus?.check_out;
   const initials = user ? (user.first_name?.[0] || '') + (user.last_name?.[0] || '') : '?';
@@ -116,20 +143,53 @@ export default function Layout() {
     <div className="app-layout">
       <header className="app-header">
         <div className="header-left">
-          <NavLink to="/" className="brand-logo-container">
-            <div className="brand-icon-box">
-              <Sparkles size={22} color="#ffffff" />
-            </div>
-            <span className="brand-text">Dayflow</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <NavLink to="/" className="brand-logo-container">
+              <div className="brand-icon-box">
+                {user?.company_logo ? (
+                  <img 
+                    src={user.company_logo} 
+                    alt={user.company_name || 'Logo'} 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} 
+                  />
+                ) : (
+                  <Sparkles size={22} color="#ffffff" />
+                )}
+              </div>
+              <span className="brand-text">Dayflow</span>
+            </NavLink>
+
             {user?.company_name && (
-              <div className="brand-company-badge">
-                {user.company_logo && (
+              <div 
+                className="brand-company-badge" 
+                title={isAdmin ? "Click to change organization logo" : "Company Workspace"}
+                onClick={() => isAdmin && logoInputRef.current?.click()}
+                style={{ cursor: isAdmin ? 'pointer' : 'default' }}
+              >
+                {user.company_logo ? (
                   <img src={user.company_logo} alt={user.company_name} className="brand-company-logo-img" />
+                ) : (
+                  <Building size={14} style={{ color: 'var(--primary-light)' }} />
                 )}
                 <span>{user.company_name}</span>
+                {isAdmin && (
+                  <Camera size={12} style={{ opacity: 0.6, marginLeft: 2 }} />
+                )}
               </div>
             )}
-          </NavLink>
+
+            {/* Hidden logo input for admin */}
+            {isAdmin && (
+              <input
+                type="file"
+                ref={logoInputRef}
+                accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                style={{ display: 'none' }}
+                onChange={handleLogoUpload}
+                disabled={uploadingLogo}
+              />
+            )}
+          </div>
 
           <nav className="header-nav">
             <NavLink 
