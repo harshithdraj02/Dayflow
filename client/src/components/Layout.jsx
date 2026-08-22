@@ -2,12 +2,13 @@ import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
-import { Users, Clock, CalendarDays, User, LogOut, Settings, BarChart3, DollarSign, ChevronRight, Bell, X } from 'lucide-react';
+import { Users, Clock, CalendarDays, User, LogOut, Settings, BarChart3, DollarSign, ChevronRight, Bell, X, Sun, Moon } from 'lucide-react';
 
 export default function Layout() {
   const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [theme, setTheme] = useState(localStorage.getItem('dayflow_theme') || 'light');
   const [todayStatus, setTodayStatus] = useState(null);
   const [showStatusPopover, setShowStatusPopover] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -17,6 +18,15 @@ export default function Layout() {
   const statusRef = useRef(null);
   const menuRef = useRef(null);
   const notifRef = useRef(null);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('dayflow_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
+  };
 
   useEffect(() => {
     loadTodayStatus();
@@ -197,6 +207,16 @@ export default function Layout() {
             )}
           </div>
 
+          {/* Theme Toggle Button */}
+          <button
+            className="btn-notification"
+            onClick={toggleTheme}
+            title={theme === 'light' ? 'Switch to Dark Theme' : 'Switch to Light Theme'}
+            style={{ marginRight: 4, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            {theme === 'light' ? <Moon size={19} /> : <Sun size={19} />}
+          </button>
+
           {/* Notification Bell */}
           <div className="notification-bell-container" ref={notifRef} style={{ position: 'relative' }}>
             <button 
@@ -256,8 +276,16 @@ export default function Layout() {
 
           {/* User menu */}
           <div style={{ position: 'relative' }} ref={menuRef}>
-            <div className="user-avatar" onClick={() => setShowUserMenu(!showUserMenu)}>
-              {initials}
+            <div className="user-avatar" onClick={() => setShowUserMenu(!showUserMenu)} style={{ overflow: 'hidden' }}>
+              {user?.profile_picture ? (
+                <img
+                  src={user.profile_picture}
+                  alt={`${user.first_name} ${user.last_name}`}
+                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                />
+              ) : (
+                initials
+              )}
             </div>
             {showUserMenu && (
               <div className="user-menu">

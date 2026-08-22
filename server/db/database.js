@@ -8,6 +8,18 @@ const db = new DatabaseSync(dbPath);
 db.exec('PRAGMA journal_mode = WAL;');
 db.exec('PRAGMA foreign_keys = ON;');
 
+// Update users schema for email verification code and verified status key columns
+try {
+  db.exec('ALTER TABLE users ADD COLUMN is_verified INTEGER DEFAULT 1;');
+} catch (e) {
+  // Column already exists
+}
+try {
+  db.exec('ALTER TABLE users ADD COLUMN verification_code TEXT;');
+} catch (e) {
+  // Column already exists
+}
+
 // Create tables
 db.exec(`
   CREATE TABLE IF NOT EXISTS companies (
@@ -141,6 +153,16 @@ db.exec(`
     type TEXT DEFAULT 'general',
     is_read INTEGER DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS documents (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    type TEXT DEFAULT 'General',
+    file_path TEXT NOT NULL,
+    uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 `);

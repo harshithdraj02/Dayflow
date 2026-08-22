@@ -131,7 +131,15 @@ export default function DashboardPage() {
               <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 16 }}>{getStatusIcon(emp)}</span>
             )}
             <div className="emp-avatar">
-              {emp.first_name?.[0]}{emp.last_name?.[0]}
+              {emp.profile_picture ? (
+                <img
+                  src={emp.profile_picture}
+                  alt={`${emp.first_name} ${emp.last_name}`}
+                  style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }}
+                />
+              ) : (
+                <>{emp.first_name?.[0]}{emp.last_name?.[0]}</>
+              )}
             </div>
             <div className="emp-name">{emp.first_name} {emp.last_name}</div>
             <div className="emp-role">{emp.designation}</div>

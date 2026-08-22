@@ -21,6 +21,14 @@ export default function AttendancePage() {
   }, [month, year, adminDate, activeView]);
 
   const loadData = async () => {
+    if (activeView === 'admin' && isAdmin) {
+      if (!adminDate || isNaN(new Date(adminDate).getTime())) {
+        // Safe check: clear employee list and short-circuit to avoid backend 500 or React crash
+        setAdminData([]);
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       if (activeView === 'employee' || !isAdmin) {
@@ -47,14 +55,30 @@ export default function AttendancePage() {
 
   const prevDay = () => {
     const d = new Date(adminDate);
+    if (isNaN(d.getTime())) {
+      setAdminDate(new Date().toISOString().split('T')[0]);
+      return;
+    }
     d.setDate(d.getDate() - 1);
-    setAdminDate(d.toISOString().split('T')[0]);
+    try {
+      setAdminDate(d.toISOString().split('T')[0]);
+    } catch (e) {
+      setAdminDate(new Date().toISOString().split('T')[0]);
+    }
   };
 
   const nextDay = () => {
     const d = new Date(adminDate);
+    if (isNaN(d.getTime())) {
+      setAdminDate(new Date().toISOString().split('T')[0]);
+      return;
+    }
     d.setDate(d.getDate() + 1);
-    setAdminDate(d.toISOString().split('T')[0]);
+    try {
+      setAdminDate(d.toISOString().split('T')[0]);
+    } catch (e) {
+      setAdminDate(new Date().toISOString().split('T')[0]);
+    }
   };
 
   const getStatusBadge = (status) => {
@@ -90,13 +114,29 @@ export default function AttendancePage() {
             </div>
           </div>
 
-          <div className="month-nav">
-            <button onClick={prevDay}><ChevronLeft size={18} /></button>
+          <div className="month-nav" style={{ flexWrap: 'wrap', gap: 12 }}>
+            <button onClick={prevDay} title="Previous Day"><ChevronLeft size={18} /></button>
             <div className="month-label">
-              {new Date(adminDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              {adminDate && !isNaN(new Date(adminDate).getTime()) ? (
+                new Date(adminDate).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+              ) : (
+                'Select a valid date...'
+              )}
             </div>
-            <button onClick={nextDay}><ChevronRight size={18} /></button>
-            <input type="date" className="form-input" style={{ width: 160, padding: '8px 12px' }} value={adminDate} onChange={e => setAdminDate(e.target.value)} />
+            <button onClick={nextDay} title="Next Day"><ChevronRight size={18} /></button>
+            <input
+              type="date"
+              className="form-input"
+              style={{ width: 170, padding: '8px 12px' }}
+              value={adminDate}
+              onChange={e => setAdminDate(e.target.value)}
+            />
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => setAdminDate(new Date().toISOString().split('T')[0])}
+            >
+              Today
+            </button>
           </div>
 
           <div className="data-table-wrapper">

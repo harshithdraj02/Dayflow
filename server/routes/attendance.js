@@ -87,8 +87,11 @@ router.get('/today', authMiddleware, (req, res) => {
 router.get('/my', authMiddleware, (req, res) => {
   try {
     const { month, year } = req.query;
-    const y = year || new Date().getFullYear();
-    const m = month || (new Date().getMonth() + 1);
+    let y = parseInt(year) || new Date().getFullYear();
+    let m = parseInt(month) || (new Date().getMonth() + 1);
+    if (isNaN(y) || y < 2000 || y > 2100) y = new Date().getFullYear();
+    if (isNaN(m) || m < 1 || m > 12) m = new Date().getMonth() + 1;
+
     const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
     const endDate = `${y}-${String(m).padStart(2, '0')}-31`;
 
@@ -106,10 +109,14 @@ router.get('/my', authMiddleware, (req, res) => {
 
     // Calculate total working days in month (exclude weekends)
     let totalWorkingDays = 0;
-    const startD = new Date(`${y}-${String(m).padStart(2, '0')}-01`);
-    const endD = new Date(y, m, 0);
-    for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
-      if (d.getDay() !== 0 && d.getDay() !== 6) totalWorkingDays++;
+    try {
+      const startD = new Date(y, m - 1, 1);
+      const endD = new Date(y, m, 0);
+      for (let d = new Date(startD); d <= endD; d.setDate(d.getDate() + 1)) {
+        if (d.getDay() !== 0 && d.getDay() !== 6) totalWorkingDays++;
+      }
+    } catch {
+      totalWorkingDays = 22;
     }
 
     res.json({
@@ -128,8 +135,13 @@ router.get('/all', authMiddleware, adminOnly, (req, res) => {
     const { date, start_date, end_date } = req.query;
     const companyId = req.user.company_id;
     
-    let records;
+    let records = [];
     if (date) {
+      // Validate date string YYYY-MM-DD
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(date) || isNaN(new Date(date).getTime())) {
+        return res.json([]);
+      }
       records = db.prepare(`
         SELECT a.*, u.first_name, u.last_name, u.employee_id, u.department
         FROM attendance a
@@ -159,7 +171,7 @@ router.get('/all', authMiddleware, adminOnly, (req, res) => {
     res.json(records);
   } catch (err) {
     console.error('Get all attendance error:', err);
-    res.status(500).json({ error: 'Failed to get attendance records' });
+    res.status(500).json({ error: 'Failed to get all attendance' });
   }
 });
 

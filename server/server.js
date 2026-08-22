@@ -44,5 +44,5 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 app.listen(PORT, () => {
-  console.log(`🚀 Dayflow HRMS Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Dayflow HRMS Server running smoothly on http://localhost:${PORT}`);
 });

@@ -132,6 +132,23 @@ router.post('/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) return res.status(401).json({ error: 'Invalid credentials' });
 
+    if (user.is_verified === 0) {
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      db.prepare('UPDATE users SET verification_code = ? WHERE id = ?').run(code, user.id);
+
+      console.log('\n====================================================');
+      console.log(`📧 [MOCK EMAIL SENT TO ${user.email}]`);
+      console.log(`Your Dayflow Verification Code is: ${code}`);
+      console.log('====================================================\n');
+
+      return res.status(403).json({
+        error: 'Please verify your email address to log in.',
+        needs_verification: true,
+        email: user.email,
+        code: code
+      });
+    }
+
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role, employee_id: user.employee_id, company_id: user.company_id },
       JWT_SECRET,
@@ -189,6 +206,14 @@ router.post('/register-company', uploadLogo.single('logo'), async (req, res) => 
       return res.status(400).json({ error: 'All fields (Company Name, First Name, Last Name, Email, Password) are required' });
     }
 
+    // Password complexity check
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(password)) {
+      return res.status(400).json({
+        error: 'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character.'
+      });
+    }
+
     // Check if email already registered
     const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
     if (existing) {
@@ -209,11 +234,12 @@ router.post('/register-company', uploadLogo.single('logo'), async (req, res) => 
     // 2. Generate Admin Employee ID
     const employee_id = generateEmployeeId(admin_first_name, admin_last_name);
     const hashedPassword = await bcrypt.hash(password, 10);
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // 3. Insert Admin User
+    // 3. Insert Admin User (unverified)
     const userStmt = db.prepare(`
-      INSERT INTO users (employee_id, email, password, role, first_name, last_name, phone, company_id, location, join_date)
-      VALUES (?, ?, ?, 'admin', ?, ?, ?, ?, 'Head Office', ?)
+      INSERT INTO users (employee_id, email, password, role, first_name, last_name, phone, company_id, location, join_date, is_verified, verification_code)
+      VALUES (?, ?, ?, 'admin', ?, ?, ?, ?, 'Head Office', ?, 0, ?)
     `);
     const userResult = userStmt.run(
       employee_id,
@@ -223,7 +249,8 @@ router.post('/register-company', uploadLogo.single('logo'), async (req, res) => 
       admin_last_name,
       phone || '',
       companyId,
-      new Date().toISOString().split('T')[0]
+      new Date().toISOString().split('T')[0],
+      code
     );
     const userId = userResult.lastInsertRowid;
 
@@ -250,30 +277,62 @@ router.post('/register-company', uploadLogo.single('logo'), async (req, res) => 
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(userId, defaultWage, defaultWage * 12, basic, hra, sa, pb, lta, fa, pfE, pfR, pt, net);
 
-    // 6. Generate JWT Token
-    const token = jwt.sign(
-      { id: userId, email: email, role: 'admin', employee_id: employee_id, company_id: companyId },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    const user = db.prepare(`
-      SELECT u.*, c.name as company_name, c.logo as company_logo
-      FROM users u
-      LEFT JOIN companies c ON u.company_id = c.id
-      WHERE u.id = ?
-    `).get(userId);
-    const { password: _, ...userWithoutPassword } = user;
+    console.log('\n====================================================');
+    console.log(`📧 [MOCK EMAIL SENT TO ${email}]`);
+    console.log(`Your Dayflow Verification Code is: ${code}`);
+    console.log('====================================================\n');
 
     res.status(201).json({
-      message: 'Company and Admin registered successfully',
-      token,
-      user: userWithoutPassword
+      message: 'Registration successful! Verification code sent.',
+      verification_required: true,
+      email: email,
+      code: code
     });
 
   } catch (err) {
     console.error('Company registration error:', err);
     res.status(500).json({ error: 'Failed to register company' });
+  }
+});
+
+// POST /api/auth/verify-email
+router.post('/verify-email', async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) return res.status(400).json({ error: 'Email and verification code are required' });
+
+    const user = db.prepare(`
+      SELECT u.*, c.name as company_name, c.logo as company_logo
+      FROM users u
+      LEFT JOIN companies c ON u.company_id = c.id
+      WHERE u.email = ?
+    `).get(email);
+
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    if (user.verification_code !== code) {
+      return res.status(400).json({ error: 'Invalid verification code.' });
+    }
+
+    db.prepare('UPDATE users SET is_verified = 1, verification_code = NULL WHERE id = ?').run(user.id);
+
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role, employee_id: user.employee_id, company_id: user.company_id },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    const { password: _, ...userWithoutPassword } = user;
+    userWithoutPassword.is_verified = 1;
+
+    res.json({
+      message: 'Email verified successfully!',
+      token,
+      user: userWithoutPassword
+    });
+  } catch (err) {
+    console.error('Verification error:', err);
+    res.status(500).json({ error: 'Verification failed' });
   }
 });
 

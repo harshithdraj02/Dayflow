@@ -2,7 +2,8 @@ const API_BASE = '/api';
 
 async function request(endpoint, options = {}) {
   const token = localStorage.getItem('dayflow_token');
-  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  const isFormData = options.body instanceof FormData;
+  const headers = isFormData ? { ...options.headers } : { 'Content-Type': 'application/json', ...options.headers };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const res = await fetch(`${API_BASE}${endpoint}`, { ...options, headers });
@@ -14,7 +15,10 @@ async function request(endpoint, options = {}) {
       localStorage.removeItem('dayflow_user');
       window.location.href = '/login';
     }
-    throw new Error(data.error || 'Request failed');
+    const err = new Error(data.error || 'Request failed');
+    err.status = res.status;
+    err.data = data;
+    throw err;
   }
   return data;
 }
@@ -25,12 +29,17 @@ export const api = {
   signup: (data) => request('/auth/signup', { method: 'POST', body: JSON.stringify(data) }),
   getMe: () => request('/auth/me'),
   changePassword: (data) => request('/auth/change-password', { method: 'PUT', body: JSON.stringify(data) }),
+  verifyEmail: (data) => request('/auth/verify-email', { method: 'POST', body: JSON.stringify(data) }),
 
   // Employees
   getEmployees: () => request('/employees'),
   getEmployee: (id) => request(`/employees/${id}`),
   updateEmployee: (id, data) => request(`/employees/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteEmployee: (id) => request(`/employees/${id}`, { method: 'DELETE' }),
+  uploadAvatar: (id, formData) => request(`/employees/${id}/avatar`, { method: 'POST', body: formData }),
+  getDocuments: (id) => request(`/employees/${id}/documents`),
+  addDocument: (id, data) => request(`/employees/${id}/documents`, { method: 'POST', body: data instanceof FormData ? data : JSON.stringify(data) }),
+  deleteDocument: (id, docId) => request(`/employees/${id}/documents/${docId}`, { method: 'DELETE' }),
   addSkill: (id, data) => request(`/employees/${id}/skills`, { method: 'POST', body: JSON.stringify(data) }),
   deleteSkill: (id, skillId) => request(`/employees/${id}/skills/${skillId}`, { method: 'DELETE' }),
   addCertification: (id, data) => request(`/employees/${id}/certifications`, { method: 'POST', body: JSON.stringify(data) }),

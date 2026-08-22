@@ -2,25 +2,36 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
-import { Pencil, X, Plus, Save, Mail, Phone, MapPin, Building, Briefcase, Calendar, Download, Trash2 } from 'lucide-react';
+import { Pencil, X, Plus, Save, Mail, Phone, MapPin, Building, Briefcase, Calendar, Download, Trash2, Camera, FileText, Upload, ExternalLink, Lock } from 'lucide-react';
 
 export default function ProfilePage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, refreshUser } = useAuth();
   const profileId = id ? parseInt(id) : user.id;
   const [profile, setProfile] = useState(null);
   const [payroll, setPayroll] = useState(null);
+  const [documents, setDocuments] = useState([]);
   const [activeTab, setActiveTab] = useState('private');
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // Skills & Certs state
   const [showAddSkill, setShowAddSkill] = useState(false);
   const [showAddCert, setShowAddCert] = useState(false);
   const [newSkill, setNewSkill] = useState({ name: '', level: 'Intermediate' });
   const [newCert, setNewCert] = useState({ name: '', issuer: '', date: '' });
+
+  // Documents state
+  const [showAddDoc, setShowAddDoc] = useState(false);
+  const [docForm, setDocForm] = useState({ name: '', type: 'Identity Proof', file: null, file_url: '' });
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+
+  // Wage state
   const [editWage, setEditWage] = useState('');
   const [savingWage, setSavingWage] = useState(false);
 
@@ -33,7 +44,11 @@ export default function ProfilePage() {
     try {
       const data = await api.getEmployee(profileId);
       setProfile(data);
+      setDocuments(data.documents || []);
       setEditForm({
+        first_name: data.first_name || '',
+        last_name: data.last_name || '',
+        email: data.email || '',
         phone: data.phone || '',
         address: data.address || '',
         about: data.about || '',
@@ -57,9 +72,32 @@ export default function ProfilePage() {
     try {
       await api.updateEmployee(profileId, editForm);
       await loadProfile();
+      if (profileId === user.id && refreshUser) refreshUser();
       setEditing(false);
     } catch (err) { alert(err.message); }
     setSaving(false);
+  };
+
+  const handleAvatarChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Avatar image size must be less than 5MB');
+      return;
+    }
+    const formData = new FormData();
+    formData.append('avatar', file);
+    setUploadingAvatar(true);
+    try {
+      const res = await api.uploadAvatar(profileId, formData);
+      setProfile(prev => ({ ...prev, profile_picture: res.profile_picture }));
+      if (profileId === user.id && refreshUser) {
+        refreshUser();
+      }
+    } catch (err) {
+      alert(err.message || 'Failed to upload profile picture');
+    }
+    setUploadingAvatar(false);
   };
 
   const handleDeleteEmployee = async () => {
@@ -111,6 +149,46 @@ export default function ProfilePage() {
     } catch (err) { alert(err.message); }
   };
 
+  const handleAddDocument = async (e) => {
+    e.preventDefault();
+    if (!docForm.name) {
+      alert('Document name is required');
+      return;
+    }
+    setUploadingDoc(true);
+    try {
+      const formData = new FormData();
+      formData.append('name', docForm.name);
+      formData.append('type', docForm.type);
+      if (docForm.file) {
+        formData.append('file', docForm.file);
+      } else if (docForm.file_url) {
+        formData.append('file_url', docForm.file_url);
+      } else {
+        alert('Please select a file or enter a document URL link');
+        setUploadingDoc(false);
+        return;
+      }
+      await api.addDocument(profileId, formData);
+      setShowAddDoc(false);
+      setDocForm({ name: '', type: 'Identity Proof', file: null, file_url: '' });
+      await loadProfile();
+    } catch (err) {
+      alert(err.message || 'Failed to add document');
+    }
+    setUploadingDoc(false);
+  };
+
+  const handleDeleteDoc = async (docId) => {
+    if (!window.confirm('Are you sure you want to remove this document?')) return;
+    try {
+      await api.deleteDocument(profileId, docId);
+      await loadProfile();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   const handleUpdateWage = async () => {
     setSavingWage(true);
     try {
@@ -130,9 +208,45 @@ export default function ProfilePage() {
   return (
     <div className="profile-layout">
       <div className="profile-sidebar">
-        <div className="profile-avatar">
-          {profile.first_name?.[0]}{profile.last_name?.[0]}
+        {/* Profile Picture with Upload Camera Overlay */}
+        <div style={{ position: 'relative', width: 100, height: 100, margin: '0 auto 16px' }}>
+          {profile.profile_picture ? (
+            <img
+              src={profile.profile_picture}
+              alt={`${profile.first_name} ${profile.last_name}`}
+              style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--primary)' }}
+            />
+          ) : (
+            <div className="profile-avatar" style={{ width: '100%', height: '100%', borderRadius: '50%', fontSize: 32, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              {profile.first_name?.[0]}{profile.last_name?.[0]}
+            </div>
+          )}
+          {canEdit && (
+            <label
+              title="Change Profile Picture"
+              style={{
+                position: 'absolute',
+                bottom: 2,
+                right: 2,
+                background: 'var(--primary)',
+                color: '#fff',
+                borderRadius: '50%',
+                width: 30,
+                height: 30,
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'transform 0.2s'
+              }}
+            >
+              <Camera size={15} />
+              <input type="file" accept="image/*" onChange={handleAvatarChange} style={{ display: 'none' }} disabled={uploadingAvatar} />
+            </label>
+          )}
         </div>
+
         <div className="profile-name">{profile.first_name} {profile.last_name}</div>
         <div className="profile-designation">{profile.designation}</div>
         <span className={`badge ${profile.role === 'admin' ? 'badge-admin' : 'badge-employee'}`}>{profile.role}</span>
@@ -207,6 +321,7 @@ export default function ProfilePage() {
         <div className="profile-tabs">
           <button className={`profile-tab ${activeTab === 'private' ? 'active' : ''}`} onClick={() => setActiveTab('private')}>Private Info</button>
           <button className={`profile-tab ${activeTab === 'resume' ? 'active' : ''}`} onClick={() => setActiveTab('resume')}>Resume</button>
+          <button className={`profile-tab ${activeTab === 'documents' ? 'active' : ''}`} onClick={() => setActiveTab('documents')}>Documents</button>
           {(isAdmin || user.id === profileId) && <button className={`profile-tab ${activeTab === 'salary' ? 'active' : ''}`} onClick={() => setActiveTab('salary')}>Salary Info</button>}
         </div>
 
@@ -216,18 +331,18 @@ export default function ProfilePage() {
               <div className="flex-between mb-16">
                 <h3 style={{ fontSize: 18 }}>Personal Information</h3>
                 {canEdit && !editing && (
-                  <button className="btn btn-secondary btn-sm" onClick={() => setEditing(true)}><Pencil size={14} /> Edit</button>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setEditing(true)}><Pencil size={14} /> Edit Profile</button>
                 )}
                 {editing && (
                   <div className="flex gap-8">
                     <button className="btn btn-secondary btn-sm" onClick={() => setEditing(false)}><X size={14} /> Cancel</button>
-                    <button className="btn btn-primary btn-sm" onClick={handleSaveProfile} disabled={saving}><Save size={14} /> {saving ? 'Saving...' : 'Save'}</button>
+                    <button className="btn btn-primary btn-sm" onClick={handleSaveProfile} disabled={saving}><Save size={14} /> {saving ? 'Saving...' : 'Save Profile'}</button>
                   </div>
                 )}
               </div>
 
               <div className="profile-section">
-                <h3>About <Pencil size={14} className="edit-icon" onClick={() => setEditing(true)} /></h3>
+                <h3>About {canEdit && <Pencil size={14} className="edit-icon" onClick={() => setEditing(true)} />}</h3>
                 {editing ? (
                   <textarea className="form-textarea" value={editForm.about} onChange={e => setEditForm({...editForm, about: e.target.value})} placeholder="Tell us about yourself..." />
                 ) : (
@@ -236,7 +351,7 @@ export default function ProfilePage() {
               </div>
 
               <div className="profile-section">
-                <h3>What I love about my job <Pencil size={14} className="edit-icon" onClick={() => setEditing(true)} /></h3>
+                <h3>What I love about my job {canEdit && <Pencil size={14} className="edit-icon" onClick={() => setEditing(true)} />}</h3>
                 {editing ? (
                   <textarea className="form-textarea" value={editForm.job_love} onChange={e => setEditForm({...editForm, job_love: e.target.value})} placeholder="What do you love about your job?" />
                 ) : (
@@ -245,7 +360,7 @@ export default function ProfilePage() {
               </div>
 
               <div className="profile-section">
-                <h3>My interests and hobbies <Pencil size={14} className="edit-icon" onClick={() => setEditing(true)} /></h3>
+                <h3>My interests and hobbies {canEdit && <Pencil size={14} className="edit-icon" onClick={() => setEditing(true)} />}</h3>
                 {editing ? (
                   <textarea className="form-textarea" value={editForm.interests} onChange={e => setEditForm({...editForm, interests: e.target.value})} placeholder="What are your interests?" />
                 ) : (
@@ -256,22 +371,35 @@ export default function ProfilePage() {
               {editing && (
                 <>
                   <div className="profile-section">
-                    <h3>Contact Details</h3>
+                    <h3>Contact Information <span style={{ fontSize: 12, fontWeight: 400, color: 'var(--text-muted)' }}>(Editable by Employee)</span></h3>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                       <div className="form-group">
-                        <label>Phone</label>
-                        <input className="form-input" value={editForm.phone} onChange={e => setEditForm({...editForm, phone: e.target.value})} />
+                        <label>Phone Number</label>
+                        <input className="form-input" value={editForm.phone} onChange={e => setEditForm({...editForm, phone: e.target.value})} placeholder="e.g. +91 98765 43210" />
                       </div>
                       <div className="form-group">
-                        <label>Address</label>
-                        <input className="form-input" value={editForm.address} onChange={e => setEditForm({...editForm, address: e.target.value})} />
+                        <label>Residential Address</label>
+                        <input className="form-input" value={editForm.address} onChange={e => setEditForm({...editForm, address: e.target.value})} placeholder="Full address" />
                       </div>
                     </div>
                   </div>
-                  {isAdmin && (
-                    <div className="profile-section">
-                      <h3>Job Details (Admin)</h3>
+
+                  {isAdmin ? (
+                    <div className="profile-section" style={{ borderLeft: '3px solid var(--primary)', paddingLeft: 16 }}>
+                      <h3>Administrative & Job Details (Admin Only)</h3>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div className="form-group">
+                          <label>First Name</label>
+                          <input className="form-input" value={editForm.first_name} onChange={e => setEditForm({...editForm, first_name: e.target.value})} />
+                        </div>
+                        <div className="form-group">
+                          <label>Last Name</label>
+                          <input className="form-input" value={editForm.last_name} onChange={e => setEditForm({...editForm, last_name: e.target.value})} />
+                        </div>
+                        <div className="form-group">
+                          <label>Email Address</label>
+                          <input className="form-input" value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} />
+                        </div>
                         <div className="form-group">
                           <label>Department</label>
                           <input className="form-input" value={editForm.department} onChange={e => setEditForm({...editForm, department: e.target.value})} />
@@ -280,6 +408,17 @@ export default function ProfilePage() {
                           <label>Designation</label>
                           <input className="form-input" value={editForm.designation} onChange={e => setEditForm({...editForm, designation: e.target.value})} />
                         </div>
+                        <div className="form-group">
+                          <label>Work Location</label>
+                          <input className="form-input" value={editForm.location} onChange={e => setEditForm({...editForm, location: e.target.value})} />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="profile-section" style={{ background: 'rgba(124, 106, 255, 0.05)', padding: 14, borderRadius: 8, border: '1px solid rgba(124, 106, 255, 0.2)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-muted)' }}>
+                        <Lock size={14} style={{ color: 'var(--primary)' }} />
+                        <span><strong>Job & Identity Details:</strong> First Name, Last Name, Email, Department, Designation, and Work Location are fixed by Company Admin/HR.</span>
                       </div>
                     </div>
                   )}
@@ -371,6 +510,107 @@ export default function ProfilePage() {
                   <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>No certifications added yet.</p>
                 )}
               </div>
+            </div>
+          )}
+
+          {activeTab === 'documents' && (
+            <div>
+              <div className="flex-between mb-16">
+                <h3 style={{ fontSize: 18 }}>Employee Documents</h3>
+                {canEdit && (
+                  <button className="btn btn-primary btn-sm flex items-center gap-4" onClick={() => setShowAddDoc(true)}>
+                    <Upload size={14} /> Upload Document
+                  </button>
+                )}
+              </div>
+
+              {showAddDoc && (
+                <div className="profile-section mb-20" style={{ background: 'var(--surface-hover)', padding: 16, borderRadius: 10, border: '1px solid var(--border)' }}>
+                  <h4 style={{ marginBottom: 12, fontSize: 15 }}>Upload / Add Document</h4>
+                  <form onSubmit={handleAddDocument}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label>Document Title</label>
+                        <input className="form-input" placeholder="e.g. Passport Copy / NDA Contract" value={docForm.name} onChange={e => setDocForm({ ...docForm, name: e.target.value })} required />
+                      </div>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label>Category / Type</label>
+                        <select className="form-select" value={docForm.type} onChange={e => setDocForm({ ...docForm, type: e.target.value })}>
+                          <option>Identity Proof</option>
+                          <option>Offer Letter</option>
+                          <option>Employment Contract</option>
+                          <option>Academic Certificate</option>
+                          <option>Tax / Payroll Document</option>
+                          <option>Other</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 16 }}>
+                      <label>Choose File OR File URL</label>
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                        <input type="file" className="form-input" style={{ flex: 1 }} onChange={e => setDocForm({ ...docForm, file: e.target.files[0] })} />
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>OR</span>
+                        <input type="text" className="form-input" style={{ flex: 1 }} placeholder="https://..." value={docForm.file_url} onChange={e => setDocForm({ ...docForm, file_url: e.target.value })} />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-8">
+                      <button type="submit" className="btn btn-primary btn-sm" disabled={uploadingDoc}>
+                        {uploadingDoc ? 'Uploading...' : 'Save Document'}
+                      </button>
+                      <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowAddDoc(false)}>Cancel</button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              <div className="documents-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+                {documents.map((doc) => (
+                  <div key={doc.id} className="doc-card" style={{ background: 'var(--surface-hover)', padding: 16, borderRadius: 10, border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <FileText size={22} style={{ color: 'var(--primary)' }} />
+                        <span className="badge" style={{ fontSize: 10, background: 'rgba(124, 106, 255, 0.1)', color: 'var(--primary)' }}>{doc.type}</span>
+                      </div>
+                      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 4 }}>{doc.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                        Uploaded {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recently'}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 8, marginTop: 14, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+                      <a
+                        href={doc.file_path}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-secondary btn-sm"
+                        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, fontSize: 12, textDecoration: 'none' }}
+                      >
+                        <ExternalLink size={12} /> View Document
+                      </a>
+                      {canEdit && (
+                        <button className="btn btn-danger btn-sm" onClick={() => handleDeleteDoc(doc.id)} style={{ padding: '4px 8px' }} title="Delete Document">
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {documents.length === 0 && !showAddDoc && (
+                <div className="empty-state" style={{ padding: '40px 20px', textAlign: 'center', background: 'var(--surface-hover)', borderRadius: 12, border: '1px dashed var(--border)' }}>
+                  <FileText size={40} style={{ color: 'var(--text-muted)', marginBottom: 12 }} />
+                  <h4>No documents uploaded yet</h4>
+                  <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16 }}>Store employee contracts, identity proofs, and certificates securely.</p>
+                  {canEdit && (
+                    <button className="btn btn-primary btn-sm" onClick={() => setShowAddDoc(true)}>
+                      <Upload size={14} /> Upload First Document
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

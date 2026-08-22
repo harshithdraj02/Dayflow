@@ -35,6 +35,9 @@ export function AuthProvider({ children }) {
     if (!response.ok) {
       throw new Error(data.error || 'Company registration failed');
     }
+    if (data.verification_required) {
+      return data;
+    }
     localStorage.setItem('dayflow_token', data.token);
     localStorage.setItem('dayflow_user', JSON.stringify(data.user));
     setUser(data.user);
