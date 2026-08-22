@@ -29,21 +29,17 @@ This checklist tracks already-implemented features alongside the outstanding req
 *   [x] **Navigation bell and panel drawer**: Renders alert list with status styling.
 *   [x] **Background Polling**: Frontend fetches dynamic warning/success alerts from backend every 20 seconds.
 
----
-
-## ⏳ 2. Remaining Implementations & Adjustments (Targeted)
-
 ### 🚪 Employee Account Offboarding
-*   `[ ]` **Backend Offboard Endpoint**: Implement `DELETE /api/employees/:id` (Admin only) to safely offboard employees.
-    *   *Constraint*: Utilize the database constraints mapping `ON DELETE CASCADE` to discard associated skills, certifications, leaves, attendance, and salary profiles.
-    *   *Safety Guard*: Throw `403 Forbidden` if an Admin attempts to delete their own account.
-*   `[ ]` **Offboard UI Button**: Add a red **"Delete Employee Account"** button in `ProfilePage.jsx` sidebar (restricted to Admins, hidden for self-account). Prompt for confirmation box, call the delete endpoint, display success alert, and redirect to directory `/`.
+*   [x] **Backend Offboard Endpoint**: Added `DELETE /api/employees/:id` (Admin only) to safely offboard employees.
+    *   *Constraint*: Utilizes the database constraints mapping `ON DELETE CASCADE` to discard associated skills, certifications, leaves, attendance, and salary profiles.
+    *   *Safety Guard*: Throws `403 Forbidden` if an Admin attempts to delete their own account.
+*   [x] **Offboard UI Button**: Added red **"Delete Employee Account"** button in `ProfilePage.jsx` sidebar (restricted to Admins, hidden for self-account). Prompts for confirmation box, calls API, and redirects to directory `/`.
 
 ### 📜 Certification Deletion (Completing CRUD)
-*   `[ ]` **Backend Route**: Implement `DELETE /api/employees/:id/certifications/:certId` in `server/routes/employees.js`.
+*   [x] **Backend Route**: Added `DELETE /api/employees/:id/certifications/:certId` in `server/routes/employees.js`.
     *   *Access*: Owner employee (`req.user.id === id`) or Admin.
-*   `[ ]` **Resume UI deletion**: Add a remove `X` button over certifications in the resume section of `ProfilePage.jsx` when edit permissions (`canEdit`) are allowed, mirroring the existing skills deletion logic.
+*   [x] **Resume UI deletion**: Added remove `X` icon button over certifications in the resume section of `ProfilePage.jsx` when edit permissions (`canEdit`) are allowed, mirroring skills.
 
 ### 📅 Weekend & Overlap Leave Guardrails
-*   `[ ]` **0-Day Working Range Block**: Add a validation rule to reject leave submissions when computed working days count is `0` (e.g. range spans only Saturday and Sunday).
-*   `[ ]` **Future Date Validation**: Guard against applying for leave dates that have already passed, except for retrospectively logging Sick Leave.
+*   [x] **0-Day Working Range Block**: Added validation rules to reject leave submissions when computed working days count is `0` (e.g. range spans only Saturday and Sunday).
+*   [x] **Future Date Validation**: Guards against applying for leave dates that have already passed, except for retrospectively logging Sick Leave.
